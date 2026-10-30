@@ -1,0 +1,302 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Terminal Lab</title><meta name="color-scheme" content="dark">
+<style>
+:root{--ink:#17211b;--muted:#637168;--paper:#f7f8f4;--panel:#fff;--line:#dfe6dc;--green:#276749;--lime:#d8f3dc;--orange:#c05621;--red:#c53030;color-scheme:light;box-sizing:border-box}
+html{scroll-padding-top:24px}*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.65 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;min-height:100vh}
+nav{width:244px;flex:none;border-right:1px solid var(--line);padding:28px 18px;position:sticky;top:0;height:100vh;background:#eef5eb}
+nav h1{font:800 17px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--green);margin:0 10px 3px;letter-spacing:-.03em}nav small{display:block;margin:0 10px 28px;color:var(--muted);font-size:12px;line-height:1.45}
+nav a{display:block;padding:10px 12px;border-radius:9px;color:var(--muted);text-decoration:none;font-weight:600;margin:3px 0}nav a.on,nav a:hover{background:var(--panel);color:var(--green);box-shadow:0 1px 2px #1f3b2a12}
+nav .nav-label{margin:24px 10px 8px;color:#829086;font-size:10px;text-transform:uppercase;letter-spacing:.12em;font-weight:800}
+main{flex:1;min-width:0;padding:52px clamp(22px,6vw,88px);max-width:1120px}
+h2{margin:0 0 5px;font-size:clamp(25px,3vw,36px);letter-spacing:-.04em}h3{margin:30px 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--green)}
+.mono,pre,code,.term{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+pre{background:#18231c;border:1px solid #253b2d;border-radius:10px;padding:14px;overflow-x:auto;margin:8px 0;color:#d8f3dc;font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin:20px 0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:0 2px 8px #18351d08}.card b{display:block;font-size:25px;color:var(--green);line-height:1.25}.card span{color:var(--muted);font-size:12px}
+a.card{color:inherit;text-decoration:none;display:block}a.card:hover{border-color:#9cbea0;transform:translateY(-1px)}
+button,select,.inp{background:var(--panel);color:var(--ink);border:1px solid #bfcbbd;border-radius:8px;padding:9px 13px;font:inherit;cursor:pointer}button:hover{border-color:var(--green);box-shadow:0 0 0 3px #27674912}button.pri{background:var(--green);color:white;border-color:var(--green)}
+.inp{width:100%;cursor:text}.tag{font-size:11px;padding:3px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted);display:inline-block}.ok{color:var(--green)}.warn{color:var(--orange)}
+.term{background:#142019;border:1px solid #2d4936;color:#e3f6e5;border-radius:12px;height:320px;overflow:auto;padding:16px;font-size:13px;cursor:text;margin:10px 0;box-shadow:0 8px 24px #18351d16}
+.term .out div{white-space:pre-wrap;word-break:break-word}.cmd{color:#8ed49a}.er{color:#ff9b9b}.dim{color:var(--muted)}
+.in{display:flex}.pr{color:#8ed49a;white-space:pre}.in input{flex:1;min-width:0;background:none;border:0;outline:0;color:#e3f6e5;font:inherit;padding:0}
+.bar{height:8px;background:#dfe9dd;border-radius:99px;overflow:hidden}.bar i{display:block;height:100%;background:var(--green);border-radius:inherit}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:12px 0}.msg{background:#fffaf0;border:1px solid #f1dfb8;border-left:4px solid #d69e2e;padding:12px 15px;margin:12px 0;border-radius:9px;white-space:pre-wrap}
+.hero{background:var(--lime);border:1px solid #b8dfbe;border-radius:18px;padding:26px;margin:0 0 24px}.hero h2{max-width:650px}.hero p{max-width:650px;margin:8px 0;color:#3f5947}.step{display:flex;gap:14px;align-items:flex-start}.step-num{background:var(--green);color:white;border-radius:50%;min-width:28px;height:28px;text-align:center;line-height:28px;font-weight:800}
+@media(max-width:760px){body{display:block}nav{width:auto;height:auto;position:static;display:flex;align-items:center;overflow-x:auto;padding:10px;border:0;border-bottom:1px solid var(--line)}nav h1,nav small,.nav-label{display:none}nav a{white-space:nowrap;padding:8px 10px}main{padding:28px 16px}}
+</style></head><body>
+<nav id="nav"><h1>terminal lab</h1><small>A calm, practical path from your first command to confident shell work.</small></nav><main id="m"></main>
+<script>
+/* ---------- virtual filesystem + shell engine (no real command execution) ---------- */
+const F=s=>({d:0,s}),D=c=>({d:1,c:c||{}});
+function initFS(){return D({home:D({learner:D({'notes.txt':F('Buy milk\nLearn the terminal\nBuy eggs\n'),'.secret':F('hidden file\n'),docs:D({'readme.md':F('# Docs\nTerminal Lab\n'),'todo.txt':F('learn cd\nlearn ls\nlearn grep\n')}),logs:D({'app.log':F('INFO start\nERROR disk full\nINFO ok\nERROR timeout\nINFO done\n')})})})})}
+let fs=initFS(),cwd=['home','learner'],hist=[];const HOME=['home','learner'];
+const norm=p=>{if(p[0]=='~')p='/home/learner'+p.slice(1);let a=p[0]=='/'?[]:[...cwd];for(const s of p.split('/')){if(!s||s=='.')continue;s=='..'?a.pop():a.push(s)}return a};
+const get=a=>{let n=fs;for(const s of a){if(!n.d||!n.c[s])return null;n=n.c[s]}return n};
+const parent=a=>[get(a.slice(0,-1)),a.at(-1)];
+const O=s=>({out:s,err:''}),E=m=>({out:'',err:m});
+const lines=s=>{const l=s.split('\n');if(l.at(-1)==='')l.pop();return l};
+const parse=a=>{let n=null,fl='',fi=[];for(let i=0;i<a.length;i++){const x=a[i];if(x=='-n')n=+a[++i];else if(/^-\d+$/.test(x))n=+x.slice(1);else if(x[0]=='-'&&x.length>1)fl+=x.slice(1);else fi.push(x)}return{n,fl,fi}};
+const rd=(t,c)=>{const n=get(norm(t));if(!n)return[null,`${c}: ${t}: No such file or directory`];if(n.d)return[null,`${c}: ${t}: Is a directory`];return[n.s]};
+const text=(fi,i,c)=>{if(!fi.length)return[i||''];let o='';for(const t of fi){const[s,e]=rd(t,c);if(e)return[null,e];o+=s}return[o]};
+const ms=e=>{const m=e.m??(e.d?0o755:0o644);return[6,3,0].map(s=>[0,1,2].map(k=>(m>>s)&(4>>k)?'rwx'[k]:'-').join('')).join('')};
+const clone=n=>JSON.parse(JSON.stringify(n));
+function put(n,d,s,c,mv){const dp=norm(d),dn=get(dp);let pn,nm;if(dn&&dn.d){pn=dn;nm=s.split('/').filter(Boolean).pop()}else{[pn,nm]=parent(dp);if(!pn||!pn.d)return E(`${c}: cannot create '${d}': No such file or directory`)}
+if(mv){const[sp,sn]=parent(norm(s));delete sp.c[sn]}pn.c[nm]=mv?n:clone(n);return O('')}
+const lev=(a,b)=>{const d=[...Array(a.length+1)].map((_,i)=>[i,...Array(b.length).fill(0)]);for(let j=1;j<=b.length;j++)d[0][j]=j;for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]==b[j-1]?0:1));return d[a.length][b.length]};
+const C={
+pwd:()=>O('/'+cwd.join('/')+'\n'),whoami:()=>O('learner\n'),date:()=>O(new Date().toString()+'\n'),clear:()=>({out:'',err:'',clear:1}),
+history:()=>O(hist.map((h,i)=>String(i+1).padStart(4)+'  '+h).join('\n')+'\n'),echo:a=>O(a.join(' ')+'\n'),
+help:()=>O('Supported (simulated): '+Object.keys(C).join(' ')+'\nPipes (|), && and redirection (> >>) work. Tab completes, ↑/↓ browse history, Ctrl+L clears.\n'),
+ls(a){const p=parse(a);let ts=p.fi.length?p.fi:['.'],o='';for(const t of ts){const n=get(norm(t));if(!n)return E(`ls: cannot access '${t}': No such file or directory`);
+let nm=n.d?Object.keys(n.c):[t];if(!p.fl.includes('a'))nm=nm.filter(x=>x[0]!='.');else if(n.d)nm=['.','..',...nm];nm.sort();const cn=n.d?n.c:{[t]:n};
+if(ts.length>1&&n.d)o+=t+':\n';o+=p.fl.includes('l')?nm.map(x=>{const e=cn[x]||D();return(e.d?'d':'-')+ms(e)+' 1 learner learner '+String(e.d?4096:e.s.length).padStart(5)+' Oct 30 09:00 '+x}).join('\n')+'\n':nm.join('  ')+'\n'}return O(o)},
+cd(a){const t=a[0]||'~',p=norm(t),n=get(p);if(!n)return E(`bash: cd: ${t}: No such file or directory`);if(!n.d)return E(`bash: cd: ${t}: Not a directory`);cwd=p;return O('')},
+mkdir(a){const p=parse(a),P=p.fl.includes('p');for(const t of p.fi){const q=norm(t);if(P){let n=fs;for(const s of q){if(!n.c[s])n.c[s]=D();n=n.c[s];if(!n.d)return E(`mkdir: cannot create directory '${t}': Not a directory`)}}else{const[pn,nm]=parent(q);if(!pn||!pn.d)return E(`mkdir: cannot create directory '${t}': No such file or directory`);if(pn.c[nm])return E(`mkdir: cannot create directory '${t}': File exists`);pn.c[nm]=D()}}return O('')},
+touch(a){for(const t of a){const[pn,nm]=parent(norm(t));if(!pn||!pn.d)return E(`touch: cannot touch '${t}': No such file or directory`);if(!pn.c[nm])pn.c[nm]=F('')}return O('')},
+cat(a,i){const[s,e]=text(a,i,'cat');return e?E(e):O(s)},
+head(a,i){const p=parse(a),[s,e]=text(p.fi,i,'head');return e?E(e):O(lines(s).slice(0,p.n??10).join('\n')+'\n')},
+tail(a,i){const p=parse(a),[s,e]=text(p.fi,i,'tail');return e?E(e):O(lines(s).slice(-(p.n??10)).join('\n')+'\n')},
+wc(a,i){const p=parse(a),[s,e]=text(p.fi,i,'wc');if(e)return E(e);const l=(s.match(/\n/g)||[]).length,w=s.split(/\s+/).filter(Boolean).length,c=s.length;const r=p.fl?[['l',l],['w',w],['c',c]].filter(x=>p.fl.includes(x[0])).map(x=>x[1]):[l,w,c];return O(r.join(' ')+(p.fi[0]?' '+p.fi[0]:'')+'\n')},
+sort(a,i){const p=parse(a),[s,e]=text(p.fi,i,'sort');if(e)return E(e);let l=lines(s).sort(p.fl.includes('n')?(x,y)=>parseFloat(x)-parseFloat(y):(x,y)=>x.localeCompare(y));if(p.fl.includes('r'))l.reverse();return O(l.join('\n')+'\n')},
+uniq(a,i){const p=parse(a),[s,e]=text(p.fi,i,'uniq');if(e)return E(e);const r=[];for(const l of lines(s)){if(r.length&&r.at(-1)[0]==l)r.at(-1)[1]++;else r.push([l,1])}return O(r.map(x=>(p.fl.includes('c')?String(x[1]).padStart(7)+' ':'')+x[0]).join('\n')+'\n')},
+grep(a,i){const p=parse(a),pat=p.fi[0];if(!pat)return E('Usage: grep [OPTION]... PATTERN [FILE]...');let re;try{re=new RegExp(pat,p.fl.includes('i')?'i':'')}catch{return E('grep: Invalid regular expression')}
+const R=p.fl.includes('r'),V=p.fl.includes('v');let fl=p.fi.slice(1),o='',cnt=0;if(!fl.length&&R)fl=['.'];
+const scan=(t,lb)=>lines(t).forEach((l,k)=>{if(re.test(l)!==V){cnt++;if(!p.fl.includes('c'))o+=(lb?lb+':':'')+(p.fl.includes('n')?(k+1)+':':'')+l+'\n'}});
+if(!fl.length)scan(i||'');else for(const t of fl){const n=get(norm(t));if(!n)return E(`grep: ${t}: No such file or directory`);const mu=fl.length>1||R;
+const w=(n,pa)=>{if(!n.d)return scan(n.s,mu?pa:'');if(!R){o+=`grep: ${t}: Is a directory\n`;return}for(const k of Object.keys(n.c).sort())w(n.c[k],pa.replace(/\/$/,'')+'/'+k)};w(n,t)}
+return O(p.fl.includes('c')?cnt+'\n':o)},
+find(a){let st='.',nm=null,ty=null;for(let i=0;i<a.length;i++){if(a[i]=='-name')nm=a[++i];else if(a[i]=='-type')ty=a[++i];else if(a[i][0]!='-')st=a[i]}
+const n0=get(norm(st));if(!n0)return E(`find: '${st}': No such file or directory`);const re=nm&&new RegExp('^'+nm.replace(/[.+^${}()|[\]\\]/g,'\\$&').replace(/\*/g,'.*').replace(/\?/g,'.')+'$');let o='';
+const w=(n,p,name)=>{if((!re||re.test(name))&&(!ty||(ty=='d')==!!n.d))o+=p+'\n';if(n.d)for(const k of Object.keys(n.c).sort())w(n.c[k],p.replace(/\/$/,'')+'/'+k,k)};w(n0,st,st.split('/').pop());return O(o)},
+cp(a){const p=parse(a),[s,d]=p.fi;if(!d)return E('cp: missing destination file operand');const n=get(norm(s));if(!n)return E(`cp: cannot stat '${s}': No such file or directory`);if(n.d&&!/[rR]/.test(p.fl))return E(`cp: -r not specified; omitting directory '${s}'`);return put(n,d,s,'cp')},
+mv(a){const[s,d]=a;if(!d)return E('mv: missing destination file operand');const n=get(norm(s));if(!n)return E(`mv: cannot stat '${s}': No such file or directory`);return put(n,d,s,'mv',1)},
+rm(a){const p=parse(a),R=/[rR]/.test(p.fl),Fo=p.fl.includes('f');if(!p.fi.length)return E('rm: missing operand');for(const t of p.fi){const q=norm(t),n=get(q);if(!n){if(Fo)continue;return E(`rm: cannot remove '${t}': No such file or directory`)}if(n.d&&!R)return E(`rm: cannot remove '${t}': Is a directory`);if(!q.length)return E("rm: it is dangerous to operate recursively on '/'");const[pn,nm]=parent(q);delete pn.c[nm]}if(!get(cwd))cwd=[...HOME];return O('')},
+rmdir(a){for(const t of a){const q=norm(t),n=get(q);if(!n)return E(`rmdir: failed to remove '${t}': No such file or directory`);if(!n.d)return E(`rmdir: failed to remove '${t}': Not a directory`);if(Object.keys(n.c).length)return E(`rmdir: failed to remove '${t}': Directory not empty`);delete parent(q)[0].c[q.at(-1)]}return O('')},
+chmod(a){const[m,...fi]=a;if(!m||!fi.length)return E('chmod: missing operand');for(const t of fi){const n=get(norm(t));if(!n)return E(`chmod: cannot access '${t}': No such file or directory`);let cur=n.m??(n.d?0o755:0o644);if(/^[0-7]{3}$/.test(m))cur=parseInt(m,8);else{const x=m.match(/^([ugoa]*)([+-])([rwx]+)$/);if(!x)return E(`chmod: invalid mode: '${m}'`);const w=x[1]||'a';for(const ch of x[3])for(const u of(w.includes('a')?'ugo':w)){const bit={r:4,w:2,x:1}[ch]<<{u:6,g:3,o:0}[u];cur=x[2]=='+'?cur|bit:cur&~bit}}n.m=cur}return O('')}};
+function tok(s){const t=[];let c='',q=null,h=false;const push=()=>{if(h||c){t.push({w:c});c='';h=false}};
+for(let i=0;i<s.length;i++){const ch=s[i];if(q){ch==q?q=null:c+=ch;continue}if(ch=='"'||ch=="'"){q=ch;h=true;continue}if(/\s/.test(ch)){push();continue}
+if('|&>'.includes(ch)){let o=ch;if(ch!='|'&&s[i+1]==ch){o+=ch;i++}push();t.push({o});continue}c+=ch}push();return t}
+function exec(ws,inp){const c=ws[0];if(!C[c]){const b=Object.keys(C).map(k=>[lev(k,c),k]).sort((x,y)=>x[0]-y[0])[0];return E(`bash: ${c}: command not found`+(b[0]<=2?`\nDid you mean '${b[1]}'?`:''))}return C[c](ws.slice(1),inp)}
+function run(line){let o='',er=false,cl=false;const gs=[[]];for(const t of tok(line)){t.o=='&&'?gs.push([]):gs.at(-1).push(t)}
+for(const g of gs){const cs=[[]];for(const t of g)t.o=='|'?cs.push([]):cs.at(-1).push(t);let inp=null,res=O('');
+for(const c of cs){const ws=[];let red=null;for(let i=0;i<c.length;i++){const t=c[i];if(t.o=='>'||t.o=='>>'){red={ap:t.o=='>>',f:c[i+1]?.w};i++}else if(t.w!==undefined)ws.push(t.w)}
+if(!ws.length)continue;res=exec(ws,inp);
+if(red&&red.f&&!res.err){const[pn,nm]=parent(norm(red.f)),ex=pn&&pn.c[nm];if(!pn||!pn.d)res=E(`bash: ${red.f}: No such file or directory`);else if(ex&&ex.d)res=E(`bash: ${red.f}: Is a directory`);else{pn.c[nm]=F((red.ap&&ex?ex.s:'')+res.out);res=O('')}}
+if(res.clear)cl=true;if(res.err){o+=res.err+'\n';er=true;break}inp=res.out}
+if(er)break;o+=res.out}return{o,err:er,clear:cl}}
+/* ---------- progress (localStorage, no account) ---------- */
+const dflt=()=>({l:{},e:{},qa:0,qc:0,s:0,d:[]});
+function load(){try{return Object.assign(dflt(),JSON.parse(localStorage.getItem('tl-progress')))}catch{return dflt()}}
+let P=load();const save=()=>{try{localStorage.setItem('tl-progress',JSON.stringify(P))}catch{}};
+const day=()=>new Date().toISOString().slice(0,10);
+function touch(){if(!P.d.includes(day())){P.d.push(day());save()}}
+function streak(){let n=0,d=new Date();if(!P.d.includes(day()))d.setDate(d.getDate()-1);while(P.d.includes(d.toISOString().slice(0,10))){n++;d.setDate(d.getDate()-1)}return n}
+setInterval(()=>{if(!document.hidden){P.s+=10;save()}},10000);
+/* ---------- terminal UI ---------- */
+function term(box,hook){box.className='term';box.innerHTML='<div class="out"></div><div class="in"><span class="pr"></span><input autocapitalize="off" autocomplete="off" spellcheck="false" aria-label="Terminal input"></div>';
+const out=box.firstChild,pr=box.querySelector('.pr'),inp=box.querySelector('input');let hi=-1;
+const prompt=()=>pr.textContent='learner@lab:'+('/'+cwd.join('/')).replace('/home/learner','~')+'$ ';
+const pt=(t,c)=>{const d=document.createElement('div');d.className=c||'';d.textContent=t;out.appendChild(d);box.scrollTop=box.scrollHeight};
+prompt();pt('SIMULATED environment: nothing here touches your real computer. Type help.','dim');box.onclick=()=>inp.focus();
+inp.onkeydown=e=>{if(e.key=='Enter'){const l=inp.value;pt(pr.textContent+l,'cmd');inp.value='';hi=-1;if(l.trim()){hist.push(l);const r=run(l);if(r.clear)out.innerHTML='';else if(r.o)pt(r.o.replace(/\n$/,''),r.err?'er':'');touch();hook&&hook(l,r.o)}prompt()}
+else if(e.key=='ArrowUp'){e.preventDefault();hi=hi<0?hist.length-1:Math.max(0,hi-1);inp.value=hist[hi]||''}
+else if(e.key=='ArrowDown'){e.preventDefault();hi=hi<0?-1:hi+1;if(hi>=hist.length)hi=-1;inp.value=hi<0?'':hist[hi]}
+else if(e.key=='Tab'){e.preventDefault();const w=inp.value.split(' '),last=w.at(-1);let cs;if(w.length==1)cs=Object.keys(C);else{const i=last.lastIndexOf('/'),n=get(norm(last.slice(0,i+1)||'.'));cs=n&&n.d?Object.keys(n.c).map(k=>k+(n.c[k].d?'/':'')):[]}
+const base=last.slice(last.lastIndexOf('/')+1),m=cs.filter(x=>x.startsWith(base));if(m.length==1){w[w.length-1]=last.slice(0,last.lastIndexOf('/')+1)+m[0];inp.value=w.join(' ')}else if(m.length>1)pt(m.join('  '),'dim')}
+else if(e.ctrlKey&&e.key=='l'){e.preventDefault();out.innerHTML=''}else if(e.ctrlKey&&e.key=='c'){pt(pr.textContent+inp.value+'^C','dim');inp.value=''}};
+setTimeout(()=>inp.focus(),0)}
+function taskTerm(box,tk,done){const h0=hist.length;term(box,(l,o)=>{if(!tk.done&&tk.check({fs,h:hist.slice(h0),last:l,out:o||''})){tk.done=1;done()}})}
+const rst=()=>{fs=initFS();cwd=[...HOME]};
+/* ---------- content ---------- */
+const g=p=>get(p.split('/'));const L=[
+{t:'What is a terminal?',mod:'Module 1 · Introduction',obj:'Tell terminal, shell and command apart; read the structure of a command; print your location.',
+what:'A terminal is a window where you type text. The shell (bash, zsh) is the program inside it that reads your line and runs it. A command is a program name followed by arguments and flags: in ls -l docs, ls is the command, -l is a flag (changes behaviour) and docs is the argument (what to act on).',
+why:'Typed commands can be saved, repeated, chained and automated; mouse clicks cannot. Servers, git, Python tooling and cloud platforms are all driven this way.',
+when:'Installing packages, running python train.py, using git, connecting to a remote server.',
+syn:'pwd: print working directory, the folder the shell is "in" right now. Every relative path is measured from it.\nls -a: list directory contents (ls); -a includes hidden files, whose names start with a dot.',
+ex:'$ pwd\n/home/learner\n$ ls -a\n.  ..  .secret  docs  logs  notes.txt',
+mist:'"command not found" usually means a typo. Linux is case-sensitive: LS is not ls. Hidden files never appear in plain ls.',
+real:'Before running a script you check pwd and ls so you do not run it in the wrong project folder.',
+task:'Run pwd, then list everything, including hidden files, with ls -a.',check:c=>c.h.some(x=>/^pwd/.test(x))&&c.h.some(x=>/^ls\s+(-\w*a|--all)/.test(x)),
+q:['In "ls -l docs", which part is the flag?',['ls','-l','docs'],1]},
+{t:'Moving around: cd and paths',mod:'Module 2 · Navigation',obj:'Move between directories using absolute and relative paths.',
+what:'cd changes the working directory. An absolute path starts at the root / and means the same thing everywhere (/home/learner/docs). A relative path starts from where you are (docs). .. means the parent directory, ~ means your home.',
+why:'Commands act on the "current" directory by default, so you need a way to move. Paths are how every program names every file.',
+when:'Entering a project folder, jumping back to home, opening logs on a server.',
+syn:'cd docs: move into docs (relative).\ncd ..: go up one level.\ncd ~: go home from anywhere.\ncd /home/learner/logs: absolute path.',
+ex:'$ cd docs\n$ pwd\n/home/learner/docs\n$ cd ..\n$ pwd\n/home/learner',
+mist:'"No such file or directory" means the path is wrong from where you are: check pwd and ls. Spaces split arguments, so quote names with spaces.',
+real:'Python imports and relative file reads (open("data.csv")) depend on the working directory.',
+task:'cd into docs, run pwd, then return with cd ..',check:c=>c.h.some(x=>/^cd\s+docs\/?$/.test(x))&&c.h.some(x=>/^pwd/.test(x))&&c.h.some(x=>/^cd\s+(\.\.|~)/.test(x))&&cwd.join('/')=='home/learner',
+q:['What does cd .. do?',['Goes to your home','Moves to the parent directory','Deletes the folder'],1]},
+{t:'Creating files and folders',mod:'Module 3 · Files and directories',obj:'Create nested directories and files, and understand why rm is dangerous.',
+what:'mkdir makes directories, touch makes an empty file (or updates its timestamp), cp copies, mv moves or renames, rm deletes. The shell has no recycle bin: rm is permanent.',
+why:'Projects need structure. Doing it in one line is faster and repeatable in scripts.',
+when:'Starting a project skeleton, backing up a config file, renaming data files.',
+syn:'mkdir -p a/b/c: -p creates missing parent directories and does not complain if they exist.\ncp -r src dst: -r copies a directory and its contents.\nrm -r dir: removes a directory recursively. Double-check the path first.',
+ex:'$ mkdir -p projects/api/src\n$ touch projects/api/src/main.py\n$ ls projects/api/src\nmain.py',
+mist:'mkdir a/b/c fails with "No such file or directory" if a/b is missing: use -p. cp on a directory needs -r.',
+real:'Every Python/ML project begins with a folder layout like src/, data/, models/.',
+task:'In one mkdir command create projects/api/src, then create main.py inside src.',check:()=>{const n=g('home/learner/projects/api/src/main.py');return n&&!n.d},
+q:['Which flag makes mkdir create missing parent directories?',['-r','-p','-a'],1]},
+{t:'Searching text with grep and pipes',mod:'Module 5–6 · Search and operators',obj:'Search file contents and chain commands with the pipe.',
+what:'grep prints lines matching a pattern. The pipe | sends one command’s output into the next command’s input, so small tools combine into powerful ones. wc -l counts lines.',
+why:'Logs and data files are too big to read by eye. Filtering and counting is how you find the problem.',
+when:'Finding errors in application logs, checking whether a config contains a setting.',
+syn:'grep -i word file: -i ignores case.\ngrep -n word file: show line numbers.\ngrep ERROR logs/app.log | wc -l: count the matching lines.\ncmd > file: overwrite file with output; >> appends.',
+ex:'$ grep ERROR logs/app.log\nERROR disk full\nERROR timeout\n$ grep ERROR logs/app.log | wc -l\n2',
+mist:'> overwrites without warning. grep patterns are regular expressions, so characters like . and * have special meaning.',
+real:'Debugging a failed training run: grep the log for "Traceback" or "loss".',
+task:'Count the lines containing ERROR in logs/app.log using a pipe (the answer should be 2).',check:c=>/grep/.test(c.last)&&c.out.trim()=='2',
+q:['What does | do?',['Sends one command’s output to the next command','Saves output to a file','Runs the next command only if the first succeeds'],0]},
+{t:'Reading and writing files',mod:'Module 7 · File contents',obj:'Read text safely and create useful files with cat, head, tail, and echo.',
+what:'cat prints a file. head and tail show only the beginning or end, which is safer for large files. echo prints text and becomes useful with > or >> redirection.',
+why:'You need to inspect config files and logs without opening an editor, then save command output for another tool.',
+when:'Checking a README, previewing a log, writing a small config value, or capturing a command result.',
+syn:'cat file: print the whole file.\nhead -n 2 file: print the first two lines.\ntail -n 2 file: print the last two lines.\necho text > file: overwrite; >> appends.',
+ex:'$ head -n 2 notes.txt\nBuy milk\nLearn the terminal\n$ echo done > status.txt\n$ cat status.txt\ndone',
+mist:'> overwrites immediately. Use >> when you mean append. For large files, start with head or tail.',
+real:'Previewing a production log before deciding which lines to search.',
+task:'Use head -n 2 on notes.txt, then create status.txt containing done with echo and >.',check:c=>/head\s+-n\s+2/.test(c.h.join('\n'))&&/echo\s+done\s+>\s+status\.txt/.test(c.h.join('\n'))&&g('home/learner/status.txt')?.s=='done\n',
+q:['Which operator appends instead of overwriting?',['>','>>','|'],1]},
+{t:'Permissions and ownership',mod:'Module 8 · Permissions',obj:'Read permission strings and safely add an execute bit with chmod.',
+what:'Unix permissions describe what the user, group, and everyone else may read, write, or execute. chmod changes those bits; ls -l displays them.',
+why:'Permissions protect private files and control which scripts can run.',
+when:'Making a script executable, protecting secrets, or diagnosing permission denied.',
+syn:'ls -l file: inspect permissions.\nchmod u+x file: add execute for the owner.\nchmod 644 file: set a common file mode.',
+ex:'$ chmod u+x docs/todo.txt\n$ ls -l docs/todo.txt\n-rwxr--r-- ... todo.txt',
+mist:'Do not blindly use chmod 777. Give only the permissions the task needs.',
+real:'A deployment script often needs execute permission while its environment file should stay private.',
+task:'Add execute permission for the owner of docs/todo.txt with chmod u+x.',check:()=>!!(g('home/learner/docs/todo.txt')?.m&0o100),
+q:['What does chmod u+x add?',['Execute permission for the owner','Write permission for everyone','A new file'],0]},
+{t:'Processes and stopping work',mod:'Module 9 · Processes',obj:'Understand foreground work, interruption, and the process tools you will meet on a real shell.',
+what:'A process is a running program. The foreground process owns your prompt until it finishes. Ctrl+C sends an interrupt, while ps and top help inspect running work.',
+why:'Knowing what is running prevents mystery hangs and helps you stop the right program.',
+when:'A server is running in a terminal, a command takes too long, or you need to inspect resource use.',
+syn:'Ctrl+C: interrupt the foreground process.\nps: list processes (real shells).\ntop: watch processes and resource use (real shells).',
+ex:'$ python server.py\n^C\n$ ps',
+mist:'Ctrl+C stops the foreground command, not necessarily every related process. Never kill a process until you have identified it.',
+real:'Stopping a local development server before changing its code.',
+task:'In this simulator, type help and then history to practice command interruption and command history.',check:c=>c.h.some(x=>/^help/.test(x))&&c.h.some(x=>/^history/.test(x)),
+q:['What does Ctrl+C normally do?',['Copy text','Interrupt the foreground process','Clear all files'],1]},
+{t:'Environment and variables',mod:'Module 10 · Shell environment',obj:'Recognize environment variables and understand why shell configuration changes behavior.',
+what:'Shell variables hold small pieces of configuration such as a path or a chosen editor. Environment variables are inherited by programs launched from the shell.',
+why:'Tools use variables for configuration without hard-coding machine-specific values.',
+when:'Choosing an editor, configuring a tool, or understanding why a command is found in one terminal but not another.',
+syn:'echo $HOME: expand a variable in a real shell.\nexport NAME=value: pass it to child processes.\nwhich command: locate an installed command (real shells).',
+ex:'$ echo $HOME\n/home/learner\n$ echo $PATH\n/usr/local/bin:...',
+mist:'A variable only exists in the shell unless exported. Never put secrets in shell history or committed config files.',
+real:'CI jobs use environment variables for non-secret configuration and secret stores for credentials.',
+task:'Use echo to print the word terminal, then use echo to print the word lab.',check:c=>c.h.filter(x=>/^echo\s+/.test(x)).length>=2,
+q:['Why export a variable?',['To delete it','To pass it to child processes','To make a directory'],1]},
+{t:'Shell operators and scripts',mod:'Module 11 · Automation',obj:'Combine commands with &&, pipes, redirection, and repeatable scripts.',
+what:'Operators let one command feed another, save output, or run the next command only after success. A script is a file containing commands you can run repeatedly.',
+why:'Automation turns a careful manual workflow into a repeatable, reviewable tool.',
+when:'Build commands, backups, data cleanup, and routine project setup.',
+syn:'first && second: run second only if first succeeds.\nfirst | second: pipe output.\ncommand > file: redirect output.\ncommand >> file: append output.',
+ex:'$ grep ERROR logs/app.log | wc -l > error-count.txt\n$ cat error-count.txt\n2',
+mist:'A pipe sends stdout, not every kind of output. Always inspect a redirect target before overwriting it.',
+real:'A test script can install dependencies, run checks, and stop on the first failure.',
+task:'Run grep ERROR logs/app.log | wc -l and redirect the result into error-count.txt.',check:()=>g('home/learner/error-count.txt')?.s=='2\n',
+q:['What does && mean?',['Run the next command only when the first succeeds','Append text','Search recursively'],0]},
+{t:'Networking essentials',mod:'Module 12 · Networking',obj:'Build a safe mental model for hosts, ports, URLs, and the network commands you will use.',
+what:'A host identifies a machine, a port identifies a service, and a URL describes a resource. curl requests URLs; ping tests reachability, though not every host answers it.',
+why:'Modern development depends on APIs, package registries, remote Git repositories, and servers.',
+when:'Checking an API, downloading documentation, or diagnosing whether a service is reachable.',
+syn:'curl https://example.com: request a URL (real shell).\nping host: test network reachability (real shell).\nssh user@host: open a remote shell (real shell).',
+ex:'$ curl https://example.com\n<!doctype html>...',
+mist:'Do not paste tokens or passwords into URLs or shared terminal history. Network output can be untrusted input.',
+real:'Checking a health endpoint before deploying a web service.',
+task:'Use the simulator help command, then ask the Tutor about curl when you are ready to try a real shell.',check:c=>c.h.some(x=>/^help/.test(x)),
+q:['What does a port identify?',['A service on a host','A local file','A shell variable'],0]},
+{t:'Bash scripting foundations',mod:'Module 13 · Scripting',obj:'Recognize the building blocks of a shell script and practice turning commands into a sequence.',
+what:'A shell script is plain text executed by a shell. Real scripts use a shebang, variables, conditionals, loops, functions, and exit status.',
+why:'Scripts make setup and maintenance repeatable for people and machines.',
+when:'Project setup, backups, CI checks, and scheduled jobs.',
+syn:'#!/usr/bin/env bash: choose Bash.\nif command; then ... fi: branch on success.\nfor item in ...; do ... done: repeat work.\n$?: previous command status in a real shell.',
+ex:'#!/usr/bin/env bash\nset -e\nfor file in *.txt; do\n  echo \"$file\"\ndone',
+mist:'Quote variables when paths may contain spaces. Use set -e thoughtfully and test scripts with harmless inputs first.',
+real:'A repository setup script can create folders and install the exact development tools.',
+task:'Use history to review the commands you have practiced, then run pwd to anchor the current location.',check:c=>c.h.some(x=>/^history/.test(x))&&c.h.some(x=>/^pwd/.test(x)),
+q:['What is a shell script?',['A text file containing shell commands','A network port','A hidden folder'],0]},
+{t:'Your command-line toolkit',mod:'Module 14 · Capstone',obj:'Combine navigation, files, search, operators, and safe habits into one repeatable workflow.',
+what:'Confident terminal use is less about memorizing every flag and more about breaking work into small observable steps: locate, inspect, change, verify.',
+why:'This workflow scales from a tiny exercise to a production server.',
+when:'Every time you work in a project from a terminal.',
+syn:'pwd → ls → inspect with cat/head → change → verify with ls/cat/grep.\nUse --help or man command in a real shell when you need details.',
+ex:'$ pwd\n$ ls\n$ grep ERROR logs/app.log | wc -l\n2\n$ history',
+mist:'Slow down before rm or >. Verify paths, quote spaces, and check output after each change.',
+real:'Debugging a failed application by locating its log, filtering the error, and saving a small report.',
+task:'Run pwd, ls, and history in that order. You have completed the foundation path.',check:c=>/^pwd$/.test(c.h[0])&&c.h.some(x=>/^ls(?:\s|$)/.test(x))&&c.h.some(x=>/^history/.test(x)),
+q:['What is the safest terminal workflow?',['Guess, delete, and hope','Locate, inspect, change, verify','Run every command as root'],1]}];
+const X=[
+['Beginner','Create a directory called projects.','Use mkdir followed by the name.','mkdir creates directories. The shell will not warn you if the name already exists, it just errors.',()=>{const n=g('home/learner/projects');return n&&n.d}],
+['Beginner','Create an empty file called todo.md in your home directory.','touch creates an empty file.','touch creates the file if missing, or updates its timestamp if present.',()=>{const n=g('home/learner/todo.md');return n&&!n.d}],
+['Easy','Copy notes.txt into the docs directory (keep the original).','cp source destination-dir','cp duplicates; mv would have removed the original.',()=>g('home/learner/docs/notes.txt')&&g('home/learner/notes.txt')],
+['Easy','Rename notes.txt to ideas.txt.','mv renames when the destination is a new name.','mv is both move and rename: same directory, new name.',()=>g('home/learner/ideas.txt')&&!g('home/learner/notes.txt')],
+['Intermediate','Create the nested directories a/b/c with a single command.','Look for the flag that creates parents.','mkdir -p creates every missing parent.',()=>g('home/learner/a/b/c')],
+['Intermediate','Find every .log file under your home directory.','find . -name with a wildcard in quotes.','find walks directories; quote the pattern so the shell does not expand it first.',c=>/^find/.test(c.last)&&c.out.includes('app.log')],
+['Intermediate','Count the lines in notes.txt.','wc has a flag for lines.','wc -l counts newline characters, i.e. lines.',c=>/wc/.test(c.last)&&/^3\b/.test(c.out.trim())],
+['Advanced','Save only the ERROR lines of logs/app.log into errors.txt.','Combine grep with >.','Redirection > sends output to a file instead of the screen.',()=>{const n=g('home/learner/errors.txt');return n&&n.s=='ERROR disk full\nERROR timeout\n'}],
+['Advanced','Make docs/todo.txt executable for the owner.','chmod u+x file','u+x adds the execute bit for the user. Check with ls -l docs.',()=>{const n=g('home/learner/docs/todo.txt');return n&&(n.m??0o644)&0o100}],
+['Expert','Write the sorted, de-duplicated lines of notes.txt into sorted.txt.','uniq only collapses adjacent duplicates, so sort first.','sort | uniq is a classic pipeline; order matters because uniq compares neighbours.',()=>{const n=g('home/learner/sorted.txt');return n&&n.s=='Buy eggs\nBuy milk\nLearn the terminal\n'}]].map(([lv,t,hint,why,check])=>({lv,t,hint,why,check}));
+const R={pwd:['Print the absolute path of the current directory.','pwd','pwd → /home/learner','POSIX. CMD: cd · PowerShell: Get-Location','—','cd, ls'],
+ls:['List directory contents.','ls [-l] [-a] [path]','ls -la docs','POSIX. CMD: dir · PowerShell: Get-ChildItem','"cannot access: No such file or directory" = wrong path','pwd, cd'],
+cd:['Change the working directory (a shell built-in).','cd [path]','cd ~/projects','Built-in. PowerShell: Set-Location','"Not a directory" if the target is a file','pwd, ls'],
+mkdir:['Create directories.','mkdir [-p] dir...','mkdir -p a/b/c','POSIX. CMD/PowerShell: mkdir, New-Item -ItemType Directory','"No such file or directory" without -p','touch, rmdir'],
+touch:['Create an empty file or update its timestamp.','touch file...','touch main.py','POSIX. PowerShell: New-Item (no direct CMD equivalent)','—','mkdir, cat'],
+cat:['Print file contents.','cat [file...]','cat notes.txt','POSIX. CMD: type · PowerShell: Get-Content','"Is a directory"','head, tail'],
+echo:['Print text; with > writes it to a file.','echo text','echo hi > a.txt','Shell built-in (all shells)','> overwrites, >> appends','cat'],
+cp:['Copy files or directories.','cp [-r] src dst','cp -r docs backup','POSIX. CMD: copy · PowerShell: Copy-Item','"-r not specified; omitting directory"','mv'],
+mv:['Move or rename.','mv src dst','mv a.txt b.txt','POSIX. CMD: move/ren · PowerShell: Move-Item','Overwrites an existing destination silently','cp'],
+rm:['Remove files. Permanent: there is no trash.','rm [-r] [-f] path...','rm old.txt','POSIX. CMD: del · PowerShell: Remove-Item','rm -r on the wrong path. Read it twice.','rmdir'],
+rmdir:['Remove an empty directory.','rmdir dir','rmdir empty','POSIX. CMD: rmdir','"Directory not empty": use rm -r','rm'],
+find:['Search for files by name or type.','find [path] -name pat [-type f|d]','find . -name "*.log"','POSIX (options differ on macOS/GNU). PowerShell: Get-ChildItem -Recurse','Unquoted wildcards expand early','grep'],
+grep:['Print lines matching a pattern.','grep [-i -n -r -v -c] pattern [file]','grep -rn TODO .','POSIX. PowerShell: Select-String · CMD: findstr','Special regex characters in patterns','find, wc'],
+head:['Show the first lines.','head [-n N] file','head -n 5 app.log','POSIX','—','tail'],tail:['Show the last lines.','tail [-n N] file','tail -n 20 app.log','POSIX (tail -f follows a file on real systems)','—','head'],
+wc:['Count lines, words, bytes.','wc [-l -w -c] file','wc -l notes.txt','POSIX','Prints the filename when given a file, not for piped input','grep'],
+sort:['Sort lines.','sort [-r] [-n] file','sort names.txt','POSIX','Sorts as text unless -n','uniq'],uniq:['Collapse adjacent duplicate lines.','uniq [-c]','sort a | uniq -c','POSIX','Needs sorted input','sort'],
+chmod:['Change permission bits (r=4, w=2, x=1 for user, group, other).','chmod mode file','chmod 755 run.sh · chmod u+x run.sh','POSIX. Windows uses icacls instead','Making everything 777 is a security risk','ls -l'],
+history:['List previously typed commands.','history','history | grep cd','Bash/Zsh built-in. PowerShell: Get-History','—','—'],clear:['Clear the screen (Ctrl+L).','clear','clear','POSIX. CMD: cls','—','—'],
+whoami:['Print the current user name.','whoami','whoami','Linux, macOS, Windows','—','—'],date:['Print the date and time.','date','date','POSIX. PowerShell: Get-Date','—','—']};
+/* ---------- tutor (rule-based, no LLM) ---------- */
+const ERRS=[['no such file','The path does not exist from where you are. Run pwd to see your location and ls to see what is there. Relative paths start from the current directory; absolute paths start with /.'],['not found','The shell cannot find a program with that name: usually a typo (names are case-sensitive) or something not installed. This simulator also suggests the closest command.'],['permission denied','You lack the needed permission bit. Inspect with ls -l, then adjust with chmod (e.g. chmod u+x file).'],['is a directory','That command expects a file. For directories use cd, ls, or add -r where supported.'],['file exists','mkdir will not overwrite. Use a different name, or mkdir -p if you only need it to exist.'],['not empty','rmdir only removes empty directories. Use rm -r carefully, or empty it first.']];
+function tutor(mode,q){const l=q.toLowerCase();if(mode=='error'){const e=ERRS.find(x=>l.includes(x[0]));return e?e[1]:'I know these errors: '+ERRS.map(x=>x[0]).join(', ')+'. Paste one.'}
+const c=Object.keys(R).find(k=>new RegExp('\\b'+k+'\\b').test(l));if(!c){const e=ERRS.find(x=>l.includes(x[0]));return e?e[1]:'I only know the commands in the Reference page. Try asking about one, e.g. "explain grep".'}
+const r=R[c];return mode=='example'?`Example:\n${r[2]}\nSyntax: ${r[1]}`:`${c}: ${r[0]}\nSyntax: ${r[1]}\nExample: ${r[2]}\nPlatforms: ${r[3]}\nWatch out: ${r[4]}\nRelated: ${r[5]}`}
+/* ---------- views ---------- */
+const NAV=[['dash','Home'],['lessons','Learn · guided path'],['practice','Practice'],['play','Playground'],['progress','Progress']];
+const lessonDone=i=>P.l[i]&&P.l[i].p&&P.l[i].q;const bar=(a,b)=>`<div class="bar"><i style="width:${b?100*a/b:0}%"></i></div>`;
+const lessonAvailable=i=>i===0||lessonDone(i-1);
+const MODS=['Introduction','Navigation','Files & directories','Reading & writing files','Search & text processing','Shell operators','Permissions','Processes','Shell configuration','Package & system mgmt','Networking','Bash scripting','Advanced shell','Productivity','Linux fundamentals','Windows CMD & PowerShell'];
+const V={
+dash(){const nx=L.findIndex((_,i)=>!lessonDone(i)),dl=L.filter((_,i)=>lessonDone(i)).length,de=X.filter((_,i)=>P.e[i]).length;
+return`<section class="hero"><h2>Learn the command line, one calm step at a time.</h2><p>No scattered docs, no assumed knowledge. Follow the path from “what is a terminal?” to scripts, networking, and safe real-world workflows.</p><a class="card" href="#/lesson/${nx<0?0:nx}"><b style="font-size:18px">${nx<0?'Review the path':'Continue with lesson '+(nx+1)+': '+L[nx].t}</b><span>${nx<0?'You completed the foundation.':'The next lesson unlocks after you finish this one.'}</span></a></section><h3>Your learning</h3><div class="grid"><div class="card"><b>${dl}/${L.length}</b><span>lessons completed</span></div><div class="card"><b>${de}/${X.length}</b><span>practice tasks solved</span></div><div class="card"><b>${P.qa?Math.round(100*P.qc/P.qa)+'%':'—'}</b><span>quiz accuracy</span></div><div class="card"><b>${streak()}</b><span>day streak</span></div></div><h3>How this works</h3><div class="grid"><div class="card step"><span class="step-num">1</span><span><b style="font-size:16px">Learn</b>Read a short lesson and see the command in context.</span></div><div class="card step"><span class="step-num">2</span><span><b style="font-size:16px">Try</b>Use the safe simulated terminal. Nothing touches your computer.</span></div><div class="card step"><span class="step-num">3</span><span><b style="font-size:16px">Prove it</b>Pass the check, then unlock the next step.</span></div></div>`},
+lessons(){return`<h2>Guided learning path</h2><p class="dim">Finish each lesson’s practice and quiz to unlock the next one. References and extra tools stay out of the way until you need them.</p><div>${L.map((x,i)=>{const done=lessonDone(i),open=lessonAvailable(i);return open?`<a class="card" style="margin:10px 0" href="#/lesson/${i}"><span class="tag">${String(i+1).padStart(2,'0')} · ${x.mod}</span><b style="font-size:18px;margin-top:8px">${x.t}</b><span class="${done?'ok':''}">${done?'✓ completed':i===0?'Start here':'Next lesson'}</span></a>`:`<div class="card" style="margin:10px 0;opacity:.55"><span class="tag">${String(i+1).padStart(2,'0')} · locked</span><b style="font-size:18px;margin-top:8px">${x.t}</b><span>Complete lesson ${i} to unlock</span></div>`}).join('')}</div>`},
+lesson(i){const x=L[i];if(!x)return'Not found';const S=(h,t)=>`<h3>${h}</h3><div>${t.replace(/\n/g,'<br>')}</div>`,st=P.l[i]||{};
+return`<a href="#/lessons" class="dim">← Lessons</a><h2>${x.t}</h2><span class="tag">${x.mod}</span>${S('A. Learning objectives',x.obj)}${S('B. What is it?',x.what)}${S('C. Why does it exist?',x.why)}${S('D. When is it used?',x.when)}${S('E. Syntax breakdown','<pre>'+x.syn+'</pre>')}${S('F–G. Examples and expected output','<pre>'+x.ex+'</pre>')}${S('H. Common mistakes',x.mist)}${S('I. Real-world application',x.real)}
+<h3>J. Interactive practice ${st.p?'<span class="ok">✓ done</span>':''}</h3><div class="msg">Task: ${x.task}</div><div class="row"><button id="rs">Reset environment</button></div><div id="tb"></div>
+<h3>K. Knowledge check ${st.q?'<span class="ok">✓ done</span>':''}</h3><div>${x.q[0]}</div><div class="row">${x.q[1].map((o,k)=>`<button data-k="${k}">${o}</button>`).join('')}</div><div id="qf"></div>
+<h3>L. Completion</h3><div id="cf">${lessonDone(i)?'<span class="ok">Lesson complete.</span>':'Pass the practice and the quiz to complete this lesson.'}</div>`},
+practice(){return`<h2>Practice Lab</h2><p class="dim">Each exercise starts from a fresh simulated filesystem.</p>${X.map((x,i)=>`<a class="card" style="margin:8px 0" href="#/ex/${i}"><span class="tag">${x.lv}</span> ${x.t} <span class="ok">${P.e[i]?'✓':''}</span></a>`).join('')}`},
+ex(i){const x=X[i];if(!x)return'Not found';return`<a href="#/practice" class="dim">← Practice Lab</a><h2>${x.lv} exercise ${i+1}</h2><div class="msg">${x.t}</div><div class="row"><button id="hint">Show hint</button><button id="rs">Retry (reset)</button></div><div id="hf" class="warn"></div><div id="tb"></div><div id="xf"></div>`},
+play(){return`<h2>Playground</h2><p class="dim">Explore freely in a safe simulated terminal. This is optional; the guided path is the best place to start.</p><div class="row"><button id="rs">Reset environment</button></div><div id="tb"></div>`},
+progress(){return`<h2>Progress</h2><p class="dim">Your progress is stored locally in this browser for now.</p><div class="grid"><div class="card"><b>${Object.keys(P.l).filter(lessonDone).length}/${L.length}</b><span>lessons complete</span></div><div class="card"><b>${Object.keys(P.e).length}/${X.length}</b><span>practice tasks</span></div><div class="card"><b>${P.qc}/${P.qa}</b><span>quiz answers correct</span></div></div><div class="hero"><h3>Want to use this on more than one device?</h3><p>Google sync is not connected yet. Your local progress is safe; cloud sync needs a project-specific auth setup so no credentials are embedded in this open-source app.</p><button id="google" class="pri">Plan Google sync</button><div id="gf" class="dim"></div></div>
+<h3>Badges</h3><div class="row">${[[Object.keys(P.l).some(lessonDone),'First lesson'],[Object.keys(P.e).length>=5,'5 exercises'],[L.every((_,i)=>lessonDone(i)),'All lessons'],[streak()>=3,'3-day streak']].map(b=>`<span class="tag ${b[0]?'ok':''}">${b[0]?'★':'☆'} ${b[1]}</span>`).join('')}</div><div class="row"><button id="rp">Reset all progress</button></div>`}};
+function bind(r,a){const m=$('#m'),on=(s,f)=>{const e=m.querySelector(s);e&&(e.onclick=f)};
+if(r=='lesson'){const x=L[a];if(!x)return;rst();const tk={check:x.check},chk=()=>{if(lessonDone(a))$('#cf').innerHTML='<span class="ok">Lesson complete.</span>'};
+taskTerm($('#tb'),tk,()=>{P.l[a]=Object.assign(P.l[a]||{},{p:1});save();$('#tb').insertAdjacentHTML('afterend','<div class="ok">✓ Practice passed.</div>');chk()});
+on('#rs',()=>{rst();taskTerm($('#tb'),tk,()=>{P.l[a]=Object.assign(P.l[a]||{},{p:1});save();chk()})});
+m.querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>{const ok=+b.dataset.k==x.q[2];P.qa++;if(ok){P.qc++;P.l[a]=Object.assign(P.l[a]||{},{q:1})}save();$('#qf').innerHTML=ok?'<span class="ok">Correct.</span>':'<span class="er">Not quite. Re-read the syntax breakdown and try again.</span>';chk()})}
+if(r=='ex'){const x=X[a];if(!x)return;let h=0;const go=()=>{rst();const tk={check:x.check};taskTerm($('#tb'),tk,()=>{P.e[a]=1;save();$('#xf').innerHTML='<div class="msg ok">✓ Solved. '+x.why+'</div>'})};go();
+on('#hint',()=>{$('#hf').textContent='Hint: '+x.hint});on('#rs',()=>{$('#xf').innerHTML='';go()})}
+if(r=='play'){term($('#tb'));on('#rs',()=>{rst();term($('#tb'))})}
+if(r=='tutor'){const ask=()=>{const q=$('#tq').value.trim();if(!q)return;const d=document.createElement('div');d.className='msg';d.textContent='You: '+q+'\n\n'+tutor($('#md').value,q);$('#tl').prepend(d);$('#tq').value=''};on('#ta',ask);$('#tq').onkeydown=e=>e.key=='Enter'&&ask()}
+if(r=='ref'){const draw=()=>{const q=$('#rq').value.toLowerCase();$('#rl').innerHTML=Object.entries(R).filter(([k,v])=>!q||(k+v.join(' ')).toLowerCase().includes(q)).map(([k,v])=>`<div class="card" style="margin:8px 0"><b class="mono" style="font-size:16px">${k}</b>${v[0]}<pre>${v[1]}\n${v[2]}</pre><span>Platforms: ${v[3]}<br>Common error: ${v[4]}<br>Related: ${v[5]}</span></div>`).join('')||'No match.'};$('#rq').oninput=draw;draw()}
+if(r=='progress')on('#rp',()=>{if(confirm('Reset all progress?')){P=dflt();save();render()}})}
+const $=s=>document.querySelector(s);
+function render(){const[r,a]=(location.hash.slice(2)||'dash').split('/'),k=V[r]?r:'dash';$('#nav').querySelectorAll('a').forEach(e=>e.remove());
+$('#nav').insertAdjacentHTML('beforeend',NAV.map(([h,t])=>`<a href="#/${h}" class="${(k==h||(k=='lesson'&&h=='lessons')||(k=='ex'&&h=='practice'))?'on':''}">${t}</a>`).join(''));
+$('#m').innerHTML=V[k](a===undefined?a:+a);bind(k,a===undefined?a:+a);scrollTo(0,0)}
+addEventListener('hashchange',render);render();
+</script></body></html>
