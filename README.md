@@ -18,7 +18,7 @@ The simulator never executes commands on the learner’s computer.
 - XP, levels, progress, and a free-play Playground
 - React + Vite frontend
 - Express API for progress
-- Firebase-ready authentication and cloud sync boundary
+- Supabase-ready Google authentication and cloud progress sync
 
 ## Project layout
 
@@ -62,7 +62,38 @@ The project has two deploys:
 Browser → Vercel frontend → Render backend API → production database
 ```
 
-Vercel hosts the React app. Render hosts the Express API. The current API uses a JSON file for development; use Firestore or Postgres before relying on it for real users because hosted files are not permanent storage.
+Vercel hosts the React app. Render hosts the Express API for local/API development. Supabase provides Google authentication and Postgres progress storage for production.
+
+### Render settings
+
+Create a Render **Web Service** from this repository with:
+
+```text
+Root Directory: backend
+Build Command: npm install
+Start Command: npm start
+```
+
+The `backend/` folder has its own [package.json](./backend/package.json), so it can be deployed independently.
+
+Add:
+
+```text
+FRONTEND_ORIGIN=https://YOUR-APP.vercel.app
+```
+
+After deployment, the backend root URL returns a small JSON status response. The health endpoint is:
+
+```text
+https://YOUR-BACKEND.onrender.com/api/health
+```
+
+If you leave Render's Root Directory blank, use:
+
+```text
+Build Command: npm install
+Start Command: npm run dev:backend
+```
 
 ## Environment variables
 
@@ -95,7 +126,28 @@ On Render, add:
 FRONTEND_ORIGIN=https://YOUR-APP.vercel.app
 ```
 
-Never commit `.env`, `.env.local`, credentials, Firebase service-account files, or private keys.
+Never commit `.env`, `.env.local`, credentials, Supabase service-role keys, or private keys.
+
+## Supabase setup
+
+Supabase is the production backend for login and progress:
+
+1. Create a project at <https://supabase.com>.
+2. Open **Authentication → Providers → Google** and enable Google.
+3. Add your Vercel URL under **Authentication → URL Configuration → Redirect URLs**.
+4. Open **SQL Editor**.
+5. Paste and run [supabase/schema.sql](./supabase/schema.sql).
+6. Open **Project Settings → API**.
+7. Copy the **Project URL** and the public **anon key** into Vercel:
+
+```env
+VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+VITE_SUPABASE_ANON_KEY=YOUR_PUBLIC_ANON_KEY
+```
+
+Use the public anon key only. Never put the Supabase service-role key in the frontend.
+
+After adding the variables, redeploy Vercel. Open **Progress → Sign in with Google**. The first successful login creates or updates that user's row in the `progress` table.
 
 ## Learning path
 

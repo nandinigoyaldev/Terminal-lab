@@ -12,6 +12,14 @@ const dataFile = path.join(root, 'data', 'progress.json');
 app.use(cors({ origin: process.env.FRONTEND_ORIGIN?.split(',') || true }));
 app.use(express.json({ limit: '50kb' }));
 
+app.get('/', (_request, response) => {
+  response.json({
+    service: 'terminal-lab-api',
+    status: 'online',
+    health: '/api/health',
+  });
+});
+
 app.get('/api/health', (_request, response) => {
   response.json({ ok: true, service: 'terminal-lab-api' });
 });

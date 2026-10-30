@@ -1,6 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { createClient } from '@supabase/supabase-js';
 import './styles.css';
+
+const supabase = import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY
+  ? createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY)
+  : null;
 
 const lessons = [
   ['Terminal fundamentals', 'Meet the terminal, shell, prompt, commands, arguments, options, and paths.'],
@@ -50,6 +55,15 @@ function App() {
 
   useEffect(() => {
     localStorage.setItem('terminal-lab-progress', JSON.stringify(completed));
+    if (supabase && hydrated.current) {
+      supabase.auth.getUser().then(({ data }) => {
+        if (!data.user) return;
+        supabase.from('progress').upsert({ user_id: data.user.id, completed, updated_at: new Date().toISOString() }).then(({ error }) => {
+          if (error) setNotice('Cloud save unavailable. Your local progress is still safe.');
+        });
+      });
+      return;
+    }
     if (hydrated.current) {
       fetch(`${apiUrl}/progress/${userId}`, {
         method: 'PUT',
@@ -60,6 +74,20 @@ function App() {
   }, [apiUrl, completed, userId]);
 
   useEffect(() => {
+    if (supabase) {
+      supabase.auth.getSession().then(({ data }) => {
+        const user = data.session?.user;
+        if (!user) {
+          hydrated.current = true;
+          return;
+        }
+        supabase.from('progress').select('completed').eq('user_id', user.id).maybeSingle().then(({ data: remote }) => {
+          if (Array.isArray(remote?.completed)) setCompleted(remote.completed);
+          hydrated.current = true;
+        });
+      });
+      return;
+    }
     fetch(`${apiUrl}/progress/${userId}`)
       .then((response) => response.ok ? response.json() : Promise.reject(new Error('Progress API unavailable')))
       .then((remote) => {
@@ -108,6 +136,23 @@ function App() {
     setNotice('Mission complete. New sector unlocked.');
   };
 
+  const signIn = async () => {
+    if (!supabase) {
+      setNotice('Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to enable Google login.');
+      return;
+    }
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin },
+    });
+    if (error) setNotice(error.message);
+  };
+
+  const signOut = async () => {
+    if (supabase) await supabase.auth.signOut();
+    setNotice('Signed out. Local progress is still available on this device.');
+  };
+
   const page = useMemo(() => {
     if (active === 'learn' && currentLesson) {
       const unlocked = lessonIndex === 0 || completed.includes(lessonIndex - 1);
@@ -130,7 +175,7 @@ function App() {
     }
     if (active === 'learn') return <Learn completed={completed} />;
     if (active === 'play') return <section><div className="eyebrow">FREE ROAM</div><h2>Playground</h2><p className="lead">No objectives. Just you and the prompt.</p><div className="panel"><Terminal lines={lines} command={command} setCommand={setCommand} runCommand={runCommand} /></div></section>;
-    if (active === 'progress') return <Progress completed={completed} level={level} xp={xp} />;
+    if (active === 'progress') return <Progress completed={completed} level={level} xp={xp} signIn={signIn} notice={notice} />;
     return <Home completed={completed} level={level} xp={xp} />;
   }, [active, completed, command, currentLesson, lessonIndex, level, lines, notice, xp]);
 
@@ -141,7 +186,13 @@ function App() {
       <nav><a className={active === 'home' ? 'active' : ''} href="#/home">⌂ Home</a><a className={active === 'learn' ? 'active' : ''} href="#/learn">▸ Mission map</a><a className={active === 'play' ? 'active' : ''} href="#/play">⚡ Playground</a><a className={active === 'progress' ? 'active' : ''} href="#/progress">★ Progress</a></nav>
       <div className="sidebar-footer">SAFE MODE<br /><span>Nothing executes on your machine.</span></div>
     </aside>
-    <main>{page}</main>
+    <main>
+      <header className="topbar">
+        <span className="topbar-context">TERMINAL LAB / {active.toUpperCase()}</span>
+        <button className="login-button" onClick={signIn}>{supabase ? 'Sign in with Google' : 'Connect Google'}</button>
+      </header>
+      {page}
+    </main>
   </div>;
 }
 
@@ -157,8 +208,8 @@ function Learn({ completed }) {
   return <section><div className="eyebrow">THE CAMPAIGN</div><h2>Mission map</h2><p className="lead">Clear each sector in order. New missions unlock as you prove the last one.</p><div className="mission-list">{lessons.map((lesson, index) => { const unlocked = index === 0 || completed.includes(index - 1); const done = completed.includes(index); return <a className={`mission ${unlocked ? '' : 'locked'}`} href={unlocked ? `#/learn/${index}` : undefined} key={lesson[0]}><span className="mission-number">{done ? '✓' : unlocked ? String(index + 1).padStart(2, '0') : '🔒'}</span><span><b>{lesson[0]}</b><small>{lesson[1]}</small></span><span className="mission-arrow">{done ? 'CLEARED' : unlocked ? 'ENTER →' : 'LOCKED'}</span></a>; })}</div></section>;
 }
 
-function Progress({ completed, level, xp }) {
-  return <section><div className="eyebrow">PLAYER PROFILE</div><h2>Your progress</h2><div className="profile-card"><div className="avatar">⌘</div><div><strong>learner</strong><p>Level {level} shell explorer</p></div><div className="profile-xp"><b>{xp} XP</b><span>Next level: {300 - (xp % 300)} XP</span></div></div><div className="stats"><div><strong>{completed.length}</strong><span>missions cleared</span></div><div><strong>{lessons.length - completed.length}</strong><span>sectors remaining</span></div><div><strong>★</strong><span>badges earned</span></div></div><div className="panel"><strong>Cloud sync</strong><p>Local progress works now. Google sign-in can be connected through the backend when Firebase environment variables are configured.</p><button className="secondary">Sign in with Google</button></div></section>;
+function Progress({ completed, level, xp, signIn, notice }) {
+  return <section><div className="eyebrow">PLAYER PROFILE</div><h2>Your progress</h2><div className="profile-card"><div className="avatar">⌘</div><div><strong>learner</strong><p>Level {level} shell explorer</p></div><div className="profile-xp"><b>{xp} XP</b><span>Next level: {300 - (xp % 300)} XP</span></div></div><div className="stats"><div><strong>{completed.length}</strong><span>missions cleared</span></div><div><strong>{lessons.length - completed.length}</strong><span>sectors remaining</span></div><div><strong>★</strong><span>badges earned</span></div></div><div className="panel"><strong>Cloud sync</strong><p>Sign in with Google to keep your missions synced across devices. Without Supabase configuration, local progress still works.</p><button className="secondary" onClick={signIn}>Sign in with Google</button>{notice && <p className="notice">{notice}</p>}</div></section>;
 }
 
 createRoot(document.getElementById('root')).render(<App />);

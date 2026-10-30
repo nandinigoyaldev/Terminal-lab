@@ -18,9 +18,9 @@
     "vite": "^7.1.7"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.118.0",
     "cors": "^2.8.6",
     "express": "^5.3.0",
-    "firebase": "^13.1.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   }
