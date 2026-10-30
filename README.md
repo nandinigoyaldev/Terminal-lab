@@ -147,7 +147,7 @@ VITE_SUPABASE_ANON_KEY=YOUR_PUBLIC_ANON_KEY
 
 Use the public anon key only. Never put the Supabase service-role key in the frontend.
 
-After adding the variables, redeploy Vercel. Open **Progress → Sign in with Google**. The first successful login creates or updates that user's row in the `progress` table.
+After adding the variables, redeploy Vercel. Open **Progress → Sign in with Google**. The first successful login creates or updates that user's row in the `progress` table. Signed-in learners can use the account menu to view their email, update their display name, and sign out. The display name is stored in Supabase Auth user metadata; no extra profile table is required.
 
 ## Learning path
 

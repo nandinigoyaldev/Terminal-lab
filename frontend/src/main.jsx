@@ -37,6 +37,8 @@ function App() {
   const [lines, setLines] = useState(initialLines);
   const [command, setCommand] = useState('');
   const [notice, setNotice] = useState('');
+  const [user, setUser] = useState(null);
+  const [accountOpen, setAccountOpen] = useState(false);
   const hydrated = useRef(false);
   const apiUrl = import.meta.env.VITE_API_URL || '/api';
   const userId = useMemo(() => {
@@ -77,6 +79,7 @@ function App() {
     if (supabase) {
       supabase.auth.getSession().then(({ data }) => {
         const user = data.session?.user;
+        setUser(user || null);
         if (!user) {
           hydrated.current = true;
           return;
@@ -86,7 +89,10 @@ function App() {
           hydrated.current = true;
         });
       });
-      return;
+      const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+        setUser(session?.user || null);
+      });
+      return () => subscription.subscription.unsubscribe();
     }
     fetch(`${apiUrl}/progress/${userId}`)
       .then((response) => response.ok ? response.json() : Promise.reject(new Error('Progress API unavailable')))
@@ -145,12 +151,29 @@ function App() {
       provider: 'google',
       options: { redirectTo: window.location.origin },
     });
-    if (error) setNotice(error.message);
+    if (error) {
+      setNotice(error.message.includes('Unsupported provider')
+        ? 'Google login is not enabled in Supabase yet. Enable Google under Authentication → Providers.'
+        : error.message);
+    }
   };
 
   const signOut = async () => {
     if (supabase) await supabase.auth.signOut();
+    setUser(null);
+    setAccountOpen(false);
     setNotice('Signed out. Local progress is still available on this device.');
+  };
+
+  const updateProfile = async (displayName) => {
+    if (!supabase || !user) return;
+    const { data, error } = await supabase.auth.updateUser({ data: { full_name: displayName } });
+    if (error) {
+      setNotice(error.message);
+      return;
+    }
+    setUser(data.user);
+    setNotice('Profile updated.');
   };
 
   const page = useMemo(() => {
@@ -175,9 +198,9 @@ function App() {
     }
     if (active === 'learn') return <Learn completed={completed} />;
     if (active === 'play') return <section><div className="eyebrow">FREE ROAM</div><h2>Playground</h2><p className="lead">No objectives. Just you and the prompt.</p><div className="panel"><Terminal lines={lines} command={command} setCommand={setCommand} runCommand={runCommand} /></div></section>;
-    if (active === 'progress') return <Progress completed={completed} level={level} xp={xp} signIn={signIn} notice={notice} />;
+    if (active === 'progress') return <Progress completed={completed} level={level} xp={xp} user={user} signIn={signIn} signOut={signOut} updateProfile={updateProfile} notice={notice} />;
     return <Home completed={completed} level={level} xp={xp} />;
-  }, [active, completed, command, currentLesson, lessonIndex, level, lines, notice, xp]);
+  }, [active, completed, command, currentLesson, lessonIndex, level, lines, notice, user, xp]);
 
   return <div className="app-shell">
     <aside className="sidebar">
@@ -189,7 +212,7 @@ function App() {
     <main>
       <header className="topbar">
         <span className="topbar-context">TERMINAL LAB / {active.toUpperCase()}</span>
-        <div className="topbar-actions"><button className="login-button" onClick={signIn}>{supabase ? 'Sign in with Google' : 'Connect Google'}</button>{notice && <span className="topbar-notice">{notice}</span>}</div>
+        <div className="topbar-actions">{user ? <div className="account-wrap"><button className="account-button" onClick={() => setAccountOpen((open) => !open)}><Avatar user={user} /><span>{user.user_metadata?.full_name || user.email?.split('@')[0] || 'Account'}</span><b>⌄</b></button>{accountOpen && <div className="account-menu"><strong>{user.email}</strong><a href="#/progress" onClick={() => setAccountOpen(false)}>View profile</a><button onClick={signOut}>Sign out</button></div>}</div> : <button className="login-button" onClick={signIn}>{supabase ? 'Sign in with Google' : 'Connect Google'}</button>}{notice && <span className="topbar-notice">{notice}</span>}</div>
       </header>
       {page}
     </main>
@@ -208,8 +231,15 @@ function Learn({ completed }) {
   return <section><div className="eyebrow">THE CAMPAIGN</div><h2>Mission map</h2><p className="lead">Clear each sector in order. New missions unlock as you prove the last one.</p><div className="mission-list">{lessons.map((lesson, index) => { const unlocked = index === 0 || completed.includes(index - 1); const done = completed.includes(index); return <a className={`mission ${unlocked ? '' : 'locked'}`} href={unlocked ? `#/learn/${index}` : undefined} key={lesson[0]}><span className="mission-number">{done ? '✓' : unlocked ? String(index + 1).padStart(2, '0') : '🔒'}</span><span><b>{lesson[0]}</b><small>{lesson[1]}</small></span><span className="mission-arrow">{done ? 'CLEARED' : unlocked ? 'ENTER →' : 'LOCKED'}</span></a>; })}</div></section>;
 }
 
-function Progress({ completed, level, xp, signIn, notice }) {
-  return <section><div className="eyebrow">PLAYER PROFILE</div><h2>Your progress</h2><div className="profile-card"><div className="avatar">⌘</div><div><strong>learner</strong><p>Level {level} shell explorer</p></div><div className="profile-xp"><b>{xp} XP</b><span>Next level: {300 - (xp % 300)} XP</span></div></div><div className="stats"><div><strong>{completed.length}</strong><span>missions cleared</span></div><div><strong>{lessons.length - completed.length}</strong><span>sectors remaining</span></div><div><strong>★</strong><span>badges earned</span></div></div><div className="panel"><strong>Cloud sync</strong><p>Sign in with Google to keep your missions synced across devices. Without Supabase configuration, local progress still works.</p><button className="secondary" onClick={signIn}>Sign in with Google</button>{notice && <p className="notice">{notice}</p>}</div></section>;
+function Avatar({ user }) {
+  const image = user.user_metadata?.avatar_url || user.user_metadata?.picture;
+  return image ? <img className="avatar-image" src={image} alt="" /> : <span className="avatar-fallback">{(user.user_metadata?.full_name || user.email || 'L').slice(0, 1).toUpperCase()}</span>;
+}
+
+function Progress({ completed, level, xp, user, signIn, signOut, updateProfile, notice }) {
+  const [displayName, setDisplayName] = useState(user?.user_metadata?.full_name || '');
+  useEffect(() => setDisplayName(user?.user_metadata?.full_name || ''), [user]);
+  return <section><div className="eyebrow">PLAYER PROFILE</div><h2>Your progress</h2><div className="profile-card"><div className="profile-avatar">{user ? <Avatar user={user} /> : '⌘'}</div><div><strong>{user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'learner'}</strong><p>{user ? user.email : 'Local profile'} · Level {level} shell explorer</p></div><div className="profile-xp"><b>{xp} XP</b><span>Next level: {300 - (xp % 300)} XP</span></div></div><div className="stats"><div><strong>{completed.length}</strong><span>missions cleared</span></div><div><strong>{lessons.length - completed.length}</strong><span>sectors remaining</span></div><div><strong>★</strong><span>badges earned</span></div></div><div className="panel"><strong>Profile settings</strong>{user ? <form className="profile-form" onSubmit={(event) => { event.preventDefault(); updateProfile(displayName.trim()); }}><label>Display name<input value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Your name" maxLength="60" /></label><div className="row"><button className="primary" type="submit">Save profile</button><button className="secondary" type="button" onClick={signOut}>Sign out</button></div></form> : <><p>Sign in with Google to keep your missions synced across devices. Without Supabase configuration, local progress still works.</p><button className="secondary" onClick={signIn}>Sign in with Google</button></>}{notice && <p className="notice">{notice}</p>}</div></section>;
 }
 
 createRoot(document.getElementById('root')).render(<App />);
