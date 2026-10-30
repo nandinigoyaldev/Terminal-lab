@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
 
@@ -32,6 +32,15 @@ function App() {
   const [lines, setLines] = useState(initialLines);
   const [command, setCommand] = useState('');
   const [notice, setNotice] = useState('');
+  const hydrated = useRef(false);
+  const apiUrl = import.meta.env.VITE_API_URL || '/api';
+  const userId = useMemo(() => {
+    const existing = localStorage.getItem('terminal-lab-user-id');
+    if (existing) return existing;
+    const created = crypto.randomUUID();
+    localStorage.setItem('terminal-lab-user-id', created);
+    return created;
+  }, []);
 
   useEffect(() => {
     const change = () => setRoute(window.location.hash || '#/home');
@@ -41,7 +50,26 @@ function App() {
 
   useEffect(() => {
     localStorage.setItem('terminal-lab-progress', JSON.stringify(completed));
-  }, [completed]);
+    if (hydrated.current) {
+      fetch(`${apiUrl}/progress/${userId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ completed }),
+      }).catch(() => setNotice('Cloud save unavailable. Your local progress is still safe.'));
+    }
+  }, [apiUrl, completed, userId]);
+
+  useEffect(() => {
+    fetch(`${apiUrl}/progress/${userId}`)
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error('Progress API unavailable')))
+      .then((remote) => {
+        if (Array.isArray(remote.completed) && remote.completed.length > completed.length) {
+          setCompleted(remote.completed);
+        }
+      })
+      .catch(() => {})
+      .finally(() => { hydrated.current = true; });
+  }, [apiUrl, userId]);
 
   const active = route.split('/')[1] || 'home';
   const lessonIndex = Number(route.split('/')[2]);
@@ -122,7 +150,7 @@ function Terminal({ lines, command, setCommand, runCommand }) {
 }
 
 function Home({ completed, level, xp }) {
-  return <><div className="eyebrow">WELCOME, LEARNER</div><h1>Command line skills,<br /><em>gameified.</em></h1><p className="lead">A safe terminal playground where every command is a small win.</p><div className="hero-actions"><a className="primary" href={`#/learn/${completed.length < lessons.length ? completed.length : 0}`}>{completed.length ? 'Continue mission →' : 'Start your first mission →'}</a><a className="secondary" href="#/play">Free roam</a></div><div className="stats"><div><strong>LVL {level}</strong><span>{xp} XP earned</span></div><div><strong>{completed.length}/{lessons.length}</strong><span>missions cleared</span></div><div><strong>0</strong><span>day streak</span></div></div><div className="callout"><span>⚡</span><div><strong>Nothing to break here.</strong><p>The shell is simulated in your browser. Practice <code>rm</code>, pipes, and permissions without fear.</p></div></div></>;
+  return <><div className="eyebrow">WELCOME, LEARNER</div><h1>Learn the command line<br /><em>by doing.</em></h1><p className="lead">A safe terminal playground with a clear path from your first command to confident shell work.</p><div className="hero-actions"><a className="primary" href={`#/learn/${completed.length < lessons.length ? completed.length : 0}`}>{completed.length ? 'Continue mission →' : 'Start your first mission →'}</a><a className="secondary" href="#/play">Open playground</a></div><div className="stats"><div><strong>LVL {level}</strong><span>{xp} XP earned</span></div><div><strong>{completed.length}/{lessons.length}</strong><span>missions cleared</span></div><div><strong>SAFE</strong><span>browser simulation</span></div></div><div className="callout"><span>i</span><div><strong>Practice without consequences.</strong><p>The shell is simulated in your browser. Try <code>rm</code>, pipes, and permissions without touching your real files.</p></div></div></>;
 }
 
 function Learn({ completed }) {

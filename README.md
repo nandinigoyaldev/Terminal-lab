@@ -1,241 +1,122 @@
-# 🟢 Terminal Lab
+# Terminal Lab
 
-> **A command-line learning game with a real frontend and a real API.**
+> A guided, game-like way to learn the command line.
 
-Terminal Lab is a beginner-friendly game for learning the terminal without the fear of breaking a real computer. Clear missions, earn XP, unlock the next sector, and eventually move from `pwd` to shell scripts, networking, and system work.
+[![Live app](https://img.shields.io/badge/live-Vercel-000000?logo=vercel&logoColor=white)](https://terminal-lab.vercel.app)
+[![Frontend](https://img.shields.io/badge/frontend-React%2019-61DAFB?logo=react&logoColor=111827)](./frontend)
+[![Backend](https://img.shields.io/badge/backend-Express-111827?logo=express&logoColor=white)](./backend)
+[![License](https://img.shields.io/badge/license-MIT-65f58a)](./LICENSE)
 
-## 🧭 Project structure
+Terminal Lab teaches terminal skills in a safe simulated shell. Learners clear missions in order, earn XP, and move from `pwd` and `ls` to scripting, networking, permissions, and system tools.
+
+The simulator never executes commands on the learner’s computer.
+
+## What is here
+
+- Sequential mission path with locked/unlocked lessons
+- Simulated terminal with command history and basic shell commands
+- XP, levels, progress, and a free-play Playground
+- React + Vite frontend
+- Express API for progress
+- Firebase-ready authentication and cloud sync boundary
+
+## Project layout
 
 ```text
-terminal-lab/
-├── frontend/                 # React + Vite browser app
-│   ├── index.html
-│   ├── vite.config.js
-│   └── src/
-│       ├── main.jsx          # React UI and game state
-│       └── styles.css        # terminal-game theme
-├── backend/                  # Express API
-│   ├── server.js             # health + progress endpoints
-│   └── data/progress.json    # local development storage
-├── legacy/                   # archived one-file prototype
-├── package.json
-└── vercel.json
+frontend/    React + Vite browser app
+backend/     Express API
+legacy/      archived one-file prototype
+vercel.json  Vercel frontend build settings
 ```
 
-The old generated prototype is kept in `legacy/` for reference. It is **not** the app entrypoint anymore.
+The application entrypoint is [frontend/src/main.jsx](./frontend/src/main.jsx). The old prototype is not used.
 
-## ⚡ Stack
+## Run locally
 
-- **React 19** for the component-based frontend
-- **Vite** for development and production builds
-- **Express 5** for the backend API
-- **CORS** for local frontend/backend development
-- **Firebase** reserved for Google auth and cloud sync
-- **Vercel** for frontend hosting
-
-## 🕹️ Run everything locally
-
-Requirements: Node.js 20+ and npm.
+Requirements: Node.js 20 or newer.
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/terminal-lab.git
-cd terminal-lab
 npm install
 npm run dev:all
 ```
 
-You now have:
+Open:
 
-| Service | URL |
-|---|---|
-| React frontend | http://localhost:5173 |
-| Express backend | http://localhost:8787 |
-| API health check | http://localhost:8787/api/health |
+- Frontend: <http://localhost:5173>
+- API health check: <http://localhost:8787/api/health>
 
-Run them separately when debugging:
+Useful commands:
 
 ```bash
 npm run dev:frontend
 npm run dev:backend
+npm run build
+npm run preview
 ```
 
-Other useful commands:
+## Hosting architecture
 
-```bash
-npm run build       # production frontend build
-npm run preview     # preview frontend/dist
-npm start           # production-style backend start
-```
-
-## 🧪 What the backend does right now
-
-The backend is intentionally small and honest:
+The project has two deploys:
 
 ```text
-GET /api/health
-GET /api/progress/:userId
-PUT /api/progress/:userId
+Browser → Vercel frontend → Render backend API → production database
 ```
 
-During local development it stores progress in `backend/data/progress.json`. For production, replace that file store with Firestore, Postgres, or another hosted database before adding real users. The current frontend still keeps a local browser fallback so the game works offline.
+Vercel hosts the React app. Render hosts the Express API. The current API uses a JSON file for development; use Firestore or Postgres before relying on it for real users because hosted files are not permanent storage.
 
-## 🚀 Deploy the React frontend to Vercel
+## Environment variables
 
-You already hosted the project on Vercel. With this structure, update the project settings:
+### Frontend
 
-1. Open your Vercel project.
-2. Go to **Settings → General**.
-3. Set **Root Directory** to `./`.
-4. Set **Framework Preset** to `Vite`.
-5. Set **Build Command** to:
+Create `frontend/.env.local` for local development:
 
-   ```bash
-   npm run build
-   ```
-
-6. Set **Output Directory** to:
-
-   ```text
-   frontend/dist
-   ```
-
-7. Set **Install Command** to:
-
-   ```bash
-   npm install
-   ```
-
-8. Click **Save**.
-9. Open **Deployments**.
-10. Click the three dots on the newest deployment.
-11. Choose **Redeploy**.
-
-The included [vercel.json](./vercel.json) also contains these build settings.
-
-### Deploy from the CLI
-
-```bash
-npm install --global vercel
-vercel login
-vercel
-vercel --prod
+```env
+VITE_API_URL=http://localhost:8787
 ```
 
-## 🛠️ Deploy the backend
+On Vercel, add:
 
-Vercel is excellent for the frontend. A long-running Express server needs a backend host such as Render, Railway, Fly.io, or a VPS.
-
-### Render walkthrough
-
-1. Push this repository to GitHub.
-2. Open [render.com](https://render.com).
-3. Click **New → Web Service**.
-4. Connect the GitHub repository.
-5. Set:
-
-   ```text
-   Name: terminal-lab-api
-   Runtime: Node
-   Build command: npm install
-   Start command: npm start
-   ```
-
-6. Choose the free or paid instance.
-7. Add the environment variable:
-
-   ```text
-   FRONTEND_ORIGIN=https://YOUR-APP.vercel.app
-   ```
-
-8. Deploy.
-9. Copy the Render URL, for example:
-
-   ```text
-   https://terminal-lab-api.onrender.com
-   ```
-
-10. Test:
-
-    ```bash
-    curl https://terminal-lab-api.onrender.com/api/health
-    ```
-
-### Backend environment file
-
-Copy the example:
-
-```bash
-cp backend/.env.example backend/.env
+```env
+VITE_API_URL=https://YOUR-BACKEND.onrender.com
 ```
 
-Local values:
+### Backend
+
+Create `backend/.env` for local development:
 
 ```env
 PORT=8787
 FRONTEND_ORIGIN=http://localhost:5173
 ```
 
-Production values:
+On Render, add:
 
 ```env
-PORT=8787
 FRONTEND_ORIGIN=https://YOUR-APP.vercel.app
 ```
 
-Do not commit `backend/.env`.
+Never commit `.env`, `.env.local`, credentials, Firebase service-account files, or private keys.
 
-## 🔥 Google login and Firebase sync
+## Learning path
 
-When you are ready for real accounts:
+1. Terminal fundamentals
+2. Directory navigation
+3. Files and directories
+4. Reading and writing files
+5. Searching and text processing
+6. Shell operators
+7. Permissions and ownership
+8. Processes and job control
+9. Shell configuration
+10. Packages and system management
+11. Networking
+12. Shell scripting
+13. Advanced shell
+14. Terminal productivity
+15. System-level command line
+16. Windows CMD and PowerShell
 
-1. Create a project at [Firebase Console](https://console.firebase.google.com).
-2. Add a Web App.
-3. Enable **Authentication → Google**.
-4. Add your Vercel domain under **Authentication → Settings → Authorized domains**.
-5. Create a Firestore database.
-6. Add rules so users can only read and write their own progress.
-7. Add Firebase values to Vercel environment variables.
-
-Frontend `.env`:
-
-```env
-VITE_API_URL=https://YOUR-API.onrender.com
-VITE_FIREBASE_API_KEY=your_value
-VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=your-project-id
-VITE_FIREBASE_STORAGE_BUCKET=your-project.firebasestorage.app
-VITE_FIREBASE_MESSAGING_SENDER_ID=your_value
-VITE_FIREBASE_APP_ID=your_value
-```
-
-Local frontend setup:
-
-```bash
-cp frontend/.env.example frontend/.env.local
-```
-
-Vite exposes `VITE_*` values to the browser. Firebase web configuration is public client configuration, but never put service-account JSON, Admin SDK credentials, database passwords, or private API keys in the frontend.
-
-## 🗺️ Learning campaign
-
-1. 🟢 Terminal fundamentals
-2. 📁 Directory navigation
-3. 🧰 File management
-4. 📖 Reading and writing
-5. 🔎 Searching and text processing
-6. 🔗 Shell operators
-7. 🔒 Permissions
-8. ⚙️ Processes
-9. 🎛️ Shell configuration
-10. 📦 Packages and systems
-11. 🌐 Networking
-12. 📜 Shell scripting
-13. 🧠 Advanced shell
-14. ⌨️ Productivity
-15. 🖥️ System command line
-16. 🪟 Windows CMD and PowerShell
-
-## 🤝 Contributing
+## Contributing
 
 ```bash
 npm install
@@ -243,10 +124,10 @@ npm run dev:all
 npm run build
 ```
 
-Keep curriculum changes sequential, safe, and practical. A good mission explains the idea, shows a command, lets the learner try it, and verifies the result.
+Keep lessons sequential, practical, and safe. A good lesson explains the idea, shows a command, gives the learner a task, and checks the result.
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
-## 📄 License
+## License
 
-MIT — see [LICENSE](./LICENSE).
+MIT. See [LICENSE](./LICENSE).
