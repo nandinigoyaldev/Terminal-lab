@@ -25,7 +25,19 @@ button,select,.inp{background:var(--panel);color:var(--ink);border:1px solid #bf
 @media(max-width:760px){body{display:block}nav{width:auto;height:auto;position:static;display:flex;align-items:center;overflow-x:auto;padding:10px;border:0;border-bottom:1px solid var(--line)}nav h1,nav small,.nav-label{display:none}nav a{white-space:nowrap;padding:8px 10px}main{padding:28px 16px}}
 </style></head><body>
 <nav id="nav"><h1>terminal lab</h1><small>A calm, practical path from your first command to confident shell work.</small></nav><main id="m"></main>
-<script>
+<script type="module">
+import { initializeApp } from 'firebase/app';
+import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+const firebaseConfig={apiKey:import.meta.env.VITE_FIREBASE_API_KEY,authDomain:import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,projectId:import.meta.env.VITE_FIREBASE_PROJECT_ID,storageBucket:import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,messagingSenderId:import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,appId:import.meta.env.VITE_FIREBASE_APP_ID};
+const firebaseReady=Object.values(firebaseConfig).every(Boolean);
+const cloud=firebaseReady?{auth:getAuth(initializeApp(firebaseConfig))}:null;
+async function syncWithGoogle(){
+if(!cloud)throw new Error('Firebase is not configured. Add the VITE_FIREBASE_* values from your Firebase web app.');
+const result=await signInWithPopup(cloud.auth,new GoogleAuthProvider()),token=await result.user.getIdToken(),url=`https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents/progress/${result.user.uid}`,headers={Authorization:`Bearer ${token}`},remote=await fetch(url,{headers});
+if(remote.ok){const data=await remote.json(),payload=data.fields?.payload?.stringValue;if(payload){P=Object.assign(dflt(),JSON.parse(payload));save()}}
+else if(remote.status===404){const created=await fetch(url,{method:'PATCH',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({fields:{payload:{stringValue:JSON.stringify(P)}}})});if(!created.ok)throw new Error('Google sign-in worked, but progress could not be saved. Check your Firestore rules.')}
+else throw new Error('Google sign-in worked, but progress could not be loaded. Check your Firestore rules.');
+return result.user.displayName||result.user.email||'Google account'}
 /* ---------- virtual filesystem + shell engine (no real command execution) ---------- */
 const F=s=>({d:0,s}),D=c=>({d:1,c:c||{}});
 function initFS(){return D({home:D({learner:D({'notes.txt':F('Buy milk\nLearn the terminal\nBuy eggs\n'),'.secret':F('hidden file\n'),docs:D({'readme.md':F('# Docs\nTerminal Lab\n'),'todo.txt':F('learn cd\nlearn ls\nlearn grep\n')}),logs:D({'app.log':F('INFO start\nERROR disk full\nINFO ok\nERROR timeout\nINFO done\n')})})})})}
@@ -269,6 +281,37 @@ const NAV=[['dash','Home'],['lessons','Learn · guided path'],['practice','Pract
 const lessonDone=i=>P.l[i]&&P.l[i].p&&P.l[i].q;const bar=(a,b)=>`<div class="bar"><i style="width:${b?100*a/b:0}%"></i></div>`;
 const lessonAvailable=i=>i===0||lessonDone(i-1);
 const MODS=['Introduction','Navigation','Files & directories','Reading & writing files','Search & text processing','Shell operators','Permissions','Processes','Shell configuration','Package & system mgmt','Networking','Bash scripting','Advanced shell','Productivity','Linux fundamentals','Windows CMD & PowerShell'];
+const ROADMAP=[
+['1. Terminal fundamentals','What is a terminal and shell · CLI vs GUI · prompt and command structure · commands, arguments and options · absolute and relative paths · working directory · hidden files'],
+['2. Directory navigation','pwd · ls · cd · tree · clear · history · . and .. · ~ · tab completion'],
+['3. File and directory management','touch · mkdir · rmdir · rm · cp · mv · recursive operations · wildcards (* ? []) · hidden files · extensions and paths'],
+['4. Reading and writing files','cat · less · more · head · tail · echo · printf · nano · vim basics'],
+['5. Searching and text processing','find · grep · sort · uniq · wc · cut · tr · sed · awk · regular expressions'],
+['6. Shell operators and combinations','> · >> · < · pipes · && · || · ; · command substitution $() · quoting · escaping'],
+['7. Permissions and ownership','rwx · chmod · chown · chgrp · sudo · users and groups · octal permissions'],
+['8. Processes and job control','ps · top · htop · kill · pkill · jobs · bg · fg · & · PIDs · signals'],
+['9. Shell configuration','environment variables · export · $PATH · alias · unalias · .bashrc · .zshrc · history configuration · prompt customization'],
+['10. Package and system management','apt · brew · which · whereis · type · uname · whoami · date · df · du · free · package managers'],
+['11. Networking commands','ping · curl · wget · ssh · scp · ip · ifconfig · netstat · ss · nslookup · dig · DNS · ports'],
+['12. Bash and shell scripting','scripts · .sh files · shebang · variables · read · arguments · if/elif/else · loops · functions · arrays · exit codes · case · errors · set -e/u/x · cron'],
+['13. Advanced shell concepts','expansion · braces · parameters · process substitution · subshells · file descriptors · stdin/stdout/stderr · traps · scope · here documents · xargs · tee · parallel'],
+['14. Terminal productivity','shortcuts · Ctrl+R · completion · aliases · tmux · screen · terminal emulators · plugins · custom prompts'],
+['15. System-level command line','Linux hierarchy · /etc · /home · /var · /tmp · /usr · mounts · partitions · symbolic and hard links · logs · services · systemctl · journalctl · cron · resources'],
+['16. Windows CMD and PowerShell','dir/Get-ChildItem · cd/Set-Location · copy/Copy-Item · move/Move-Item · del/Remove-Item · type/Get-Content · mkdir/New-Item · tasklist/Get-Process · taskkill/Stop-Process · ipconfig/Get-NetIPConfiguration · batch and PowerShell scripts']
+];
+const EXTRA_TOPICS=['man and info pages','command exit status and stderr','compression with tar and gzip','JSON and CSV tools such as jq','Git and GitHub workflows','SSH keys and safe secrets','file MIME types and stat','package repositories and version pinning','shell portability and POSIX differences','safe quoting and command injection awareness'];
+const IDEAS=[
+['Safe real terminal mode','Run real commands in an isolated WebContainer without touching the host machine.'],
+['Command flashcards','Review commands with short daily spaced-repetition sessions.'],
+['Mistake explanations','Turn common errors into plain-language hints and next steps.'],
+['Mini projects','Analyze a log, organize a folder, create a project skeleton, and write a backup script.'],
+['History replay','Edit, replay, and inspect previous commands from a session timeline.'],
+['Shortcut lessons','Practice Ctrl+C, Ctrl+L, Ctrl+A, Ctrl+E, Ctrl+R, and tab completion.'],
+['Cross-platform comparison','Show Bash, PowerShell, and CMD equivalents side by side.'],
+['Accessibility mode','Add font sizing, high contrast, reduced motion, and screen-reader improvements.'],
+['Mentor mode','Let instructors publish custom exercises and share lesson links.'],
+['Learner roadmaps','Add tracks for Git, Linux admin, Bash, networking, DevOps, and developer workflows.']
+];
 const V={
 dash(){const nx=L.findIndex((_,i)=>!lessonDone(i)),dl=L.filter((_,i)=>lessonDone(i)).length,de=X.filter((_,i)=>P.e[i]).length;
 return`<section class="hero"><h2>Learn the command line, one calm step at a time.</h2><p>No scattered docs, no assumed knowledge. Follow the path from “what is a terminal?” to scripts, networking, and safe real-world workflows.</p><a class="card" href="#/lesson/${nx<0?0:nx}"><b style="font-size:18px">${nx<0?'Review the path':'Continue with lesson '+(nx+1)+': '+L[nx].t}</b><span>${nx<0?'You completed the foundation.':'The next lesson unlocks after you finish this one.'}</span></a></section><h3>Your learning</h3><div class="grid"><div class="card"><b>${dl}/${L.length}</b><span>lessons completed</span></div><div class="card"><b>${de}/${X.length}</b><span>practice tasks solved</span></div><div class="card"><b>${P.qa?Math.round(100*P.qc/P.qa)+'%':'—'}</b><span>quiz accuracy</span></div><div class="card"><b>${streak()}</b><span>day streak</span></div></div><h3>How this works</h3><div class="grid"><div class="card step"><span class="step-num">1</span><span><b style="font-size:16px">Learn</b>Read a short lesson and see the command in context.</span></div><div class="card step"><span class="step-num">2</span><span><b style="font-size:16px">Try</b>Use the safe simulated terminal. Nothing touches your computer.</span></div><div class="card step"><span class="step-num">3</span><span><b style="font-size:16px">Prove it</b>Pass the check, then unlock the next step.</span></div></div>`},
@@ -281,10 +324,10 @@ return`<a href="#/lessons" class="dim">← Lessons</a><h2>${x.t}</h2><span class
 practice(){return`<h2>Practice Lab</h2><p class="dim">Each exercise starts from a fresh simulated filesystem.</p>${X.map((x,i)=>`<a class="card" style="margin:8px 0" href="#/ex/${i}"><span class="tag">${x.lv}</span> ${x.t} <span class="ok">${P.e[i]?'✓':''}</span></a>`).join('')}`},
 ex(i){const x=X[i];if(!x)return'Not found';return`<a href="#/practice" class="dim">← Practice Lab</a><h2>${x.lv} exercise ${i+1}</h2><div class="msg">${x.t}</div><div class="row"><button id="hint">Show hint</button><button id="rs">Retry (reset)</button></div><div id="hf" class="warn"></div><div id="tb"></div><div id="xf"></div>`},
 play(){return`<h2>Playground</h2><p class="dim">Explore freely in a safe simulated terminal. This is optional; the guided path is the best place to start.</p><div class="row"><button id="rs">Reset environment</button></div><div id="tb"></div>`},
-progress(){return`<h2>Progress</h2><p class="dim">Your progress is stored locally in this browser for now.</p><div class="grid"><div class="card"><b>${Object.keys(P.l).filter(lessonDone).length}/${L.length}</b><span>lessons complete</span></div><div class="card"><b>${Object.keys(P.e).length}/${X.length}</b><span>practice tasks</span></div><div class="card"><b>${P.qc}/${P.qa}</b><span>quiz answers correct</span></div></div><div class="hero"><h3>Want to use this on more than one device?</h3><p>Google sync is not connected yet. Your local progress is safe; cloud sync needs a project-specific auth setup so no credentials are embedded in this open-source app.</p><button id="google" class="pri">Plan Google sync</button><div id="gf" class="dim"></div></div>
+progress(){return`<h2>Progress</h2><p class="dim">Your progress is stored locally in this browser for now.</p><div class="grid"><div class="card"><b>${Object.keys(P.l).filter(lessonDone).length}/${L.length}</b><span>lessons complete</span></div><div class="card"><b>${Object.keys(P.e).length}/${X.length}</b><span>practice tasks</span></div><div class="card"><b>${P.qc}/${P.qa}</b><span>quiz answers correct</span></div></div><div class="hero"><h3>Want to use this on more than one device?</h3><p>Sign in with Google to sync your progress. If this open-source deployment has no Firebase config yet, the app keeps working locally and tells you what to configure.</p><button id="google" class="pri">Sign in with Google</button><div id="gf" class="dim"></div></div>
 <h3>Badges</h3><div class="row">${[[Object.keys(P.l).some(lessonDone),'First lesson'],[Object.keys(P.e).length>=5,'5 exercises'],[L.every((_,i)=>lessonDone(i)),'All lessons'],[streak()>=3,'3-day streak']].map(b=>`<span class="tag ${b[0]?'ok':''}">${b[0]?'★':'☆'} ${b[1]}</span>`).join('')}</div><div class="row"><button id="rp">Reset all progress</button></div>`}};
 function bind(r,a){const m=$('#m'),on=(s,f)=>{const e=m.querySelector(s);e&&(e.onclick=f)};
-if(r=='lesson'){const x=L[a];if(!x)return;rst();const tk={check:x.check},chk=()=>{if(lessonDone(a))$('#cf').innerHTML='<span class="ok">Lesson complete.</span>'};
+if(r=='lesson'){const x=L[a];if(!x||!lessonAvailable(+a)){location.hash='#/lessons';return}rst();const tk={check:x.check},chk=()=>{if(lessonDone(a))$('#cf').innerHTML='<span class="ok">Lesson complete.</span>'};
 taskTerm($('#tb'),tk,()=>{P.l[a]=Object.assign(P.l[a]||{},{p:1});save();$('#tb').insertAdjacentHTML('afterend','<div class="ok">✓ Practice passed.</div>');chk()});
 on('#rs',()=>{rst();taskTerm($('#tb'),tk,()=>{P.l[a]=Object.assign(P.l[a]||{},{p:1});save();chk()})});
 m.querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>{const ok=+b.dataset.k==x.q[2];P.qa++;if(ok){P.qc++;P.l[a]=Object.assign(P.l[a]||{},{q:1})}save();$('#qf').innerHTML=ok?'<span class="ok">Correct.</span>':'<span class="er">Not quite. Re-read the syntax breakdown and try again.</span>';chk()})}
@@ -293,7 +336,7 @@ on('#hint',()=>{$('#hf').textContent='Hint: '+x.hint});on('#rs',()=>{$('#xf').in
 if(r=='play'){term($('#tb'));on('#rs',()=>{rst();term($('#tb'))})}
 if(r=='tutor'){const ask=()=>{const q=$('#tq').value.trim();if(!q)return;const d=document.createElement('div');d.className='msg';d.textContent='You: '+q+'\n\n'+tutor($('#md').value,q);$('#tl').prepend(d);$('#tq').value=''};on('#ta',ask);$('#tq').onkeydown=e=>e.key=='Enter'&&ask()}
 if(r=='ref'){const draw=()=>{const q=$('#rq').value.toLowerCase();$('#rl').innerHTML=Object.entries(R).filter(([k,v])=>!q||(k+v.join(' ')).toLowerCase().includes(q)).map(([k,v])=>`<div class="card" style="margin:8px 0"><b class="mono" style="font-size:16px">${k}</b>${v[0]}<pre>${v[1]}\n${v[2]}</pre><span>Platforms: ${v[3]}<br>Common error: ${v[4]}<br>Related: ${v[5]}</span></div>`).join('')||'No match.'};$('#rq').oninput=draw;draw()}
-if(r=='progress')on('#rp',()=>{if(confirm('Reset all progress?')){P=dflt();save();render()}})}
+if(r=='progress'){on('#google',async()=>{const b=$('#google');b.disabled=true;$('#gf').textContent='Connecting to Google…';try{$('#gf').textContent='Signed in as '+await syncWithGoogle()+'. Progress synced.';render()}catch(e){b.disabled=false;$('#gf').textContent=e.message}});on('#rp',()=>{if(confirm('Reset all progress?')){P=dflt();save();render()}})}}
 const $=s=>document.querySelector(s);
 function render(){const[r,a]=(location.hash.slice(2)||'dash').split('/'),k=V[r]?r:'dash';$('#nav').querySelectorAll('a').forEach(e=>e.remove());
 $('#nav').insertAdjacentHTML('beforeend',NAV.map(([h,t])=>`<a href="#/${h}" class="${(k==h||(k=='lesson'&&h=='lessons')||(k=='ex'&&h=='practice'))?'on':''}">${t}</a>`).join(''));
