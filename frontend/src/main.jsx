@@ -189,7 +189,7 @@ function App() {
     <main>
       <header className="topbar">
         <span className="topbar-context">TERMINAL LAB / {active.toUpperCase()}</span>
-        <button className="login-button" onClick={signIn}>{supabase ? 'Sign in with Google' : 'Connect Google'}</button>
+        <div className="topbar-actions"><button className="login-button" onClick={signIn}>{supabase ? 'Sign in with Google' : 'Connect Google'}</button>{notice && <span className="topbar-notice">{notice}</span>}</div>
       </header>
       {page}
     </main>
