@@ -55,3 +55,30 @@ Read [CONTRIBUTING.md](./CONTRIBUTING.md) before opening a pull request. Curricu
 - Add automated tests for the shell parser and filesystem operations.
 - Add accessible keyboard/focus states and a light/dark theme preference.
 - Add optional authenticated sync after choosing and configuring an auth provider.
+
+## Curriculum coverage
+
+The in-app roadmap covers 16 modules:
+
+1. Terminal fundamentals
+2. Directory navigation
+3. File and directory management
+4. Reading and writing files
+5. Searching and text processing
+6. Shell operators and combinations
+7. Permissions and ownership
+8. Processes and job control
+9. Shell configuration and customization
+10. Package and system management
+11. Networking commands
+12. Bash and shell scripting
+13. Advanced shell concepts
+14. Terminal productivity
+15. System-level command-line knowledge
+16. Windows CMD and PowerShell
+
+It also tracks additional essentials that are easy to miss in a first course: `man` and `info`, exit status and stderr, `tar` and gzip, JSON/CSV tooling such as `jq`, Git and GitHub workflows, SSH keys and secret safety, `stat` and MIME types, package version pinning, POSIX portability, and command-injection awareness.
+
+## Product roadmap
+
+The project roadmap now includes ten planned extensions: a safe real-terminal mode, command flashcards, mistake explanations, mini projects, history replay, shortcut lessons, cross-platform comparisons, accessibility mode, mentor mode, and focused learner tracks for Git, Linux administration, Bash, networking, DevOps, and developer workflows.
